@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Iniciar Sesión"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"/>
+
+    <!-- BLOQUE 1: CREDENCIALES -->
+    <LinearLayout
+        android:id="@+id/layoutCredenciales"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <EditText
+            android:id="@+id/etLoginCorreo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Correo Institucional"
+            android:inputType="textEmailAddress" />
+
+        <EditText
+            android:id="@+id/etLoginPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Contraseña"
+            android:inputType="textPassword" />
+
+        <Button
+            android:id="@+id/btnLogin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ingresar"
+            android:layout_marginTop="16dp"/>
+    </LinearLayout>
+
+    <!-- BLOQUE 2: VERIFICACIÓN 2FA (Oculto por defecto con visibility="gone") -->
+    <LinearLayout
+        android:id="@+id/layout2FA"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginTop="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ingresa el código de 6 dígitos enviado a tu correo:"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/etCodigo2FA"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Código"
+            android:inputType="number"
+            android:maxLength="6"
+            android:gravity="center"
+            android:textSize="24sp"
+            android:letterSpacing="0.3"/>
+
+        <Button
+            android:id="@+id/btnVerificar2FA"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Verificar Código"
+            android:layout_marginTop="16dp"/>
+    </LinearLayout>
+
+    <!-- BOTÓN PARA IR AL REGISTRO -->
+    <TextView
+        android:id="@+id/tvIrRegistro"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="¿No tienes cuenta? Regístrate"
+        android:layout_gravity="center"
+        android:layout_marginTop="48dp"
+        android:textStyle="bold"
+        android:textColor="#3F51B5"
+        android:clickable="true"
+        android:focusable="true"/>
+
+</LinearLayout>

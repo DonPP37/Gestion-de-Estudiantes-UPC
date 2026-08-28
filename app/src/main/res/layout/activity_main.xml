@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Registro de Estudiante"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText android:id="@+id/etNombre" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Nombre" />
+    <EditText android:id="@+id/etApellido" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Apellido" />
+    <EditText android:id="@+id/etDocumento" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Documento" android:inputType="number" />
+    <EditText android:id="@+id/etCodigo" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Código Estudiantil" android:inputType="number" />
+    <EditText android:id="@+id/etPrograma" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Programa Académico" />
+    <EditText android:id="@+id/etCorreo" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Correo Institucional" android:inputType="textEmailAddress" />
+    <EditText android:id="@+id/etPassword" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Contraseña" android:inputType="textPassword" />
+
+    <Button
+        android:id="@+id/btnRegistrar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Registrar"
+        android:layout_marginTop="24dp"/>
+</LinearLayout>
