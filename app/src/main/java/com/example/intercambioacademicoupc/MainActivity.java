@@ -2,6 +2,7 @@ package com.example.intercambioacademicoupc; // Ajusta esto según tu paquete
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Patterns;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -52,9 +53,8 @@ public class MainActivity extends AppCompatActivity {
         String correo = etCorreo.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
-        // Validación básica
-        if (nombre.isEmpty() || correo.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Por favor, completa todos los campos obligatorios", Toast.LENGTH_SHORT).show();
+        // Validación de los datos del formulario
+        if (!validarFormulario(nombre, apellido, documento, codigo, programa, correo, password)) {
             return;
         }
 
@@ -94,5 +94,54 @@ public class MainActivity extends AppCompatActivity {
                 finish(); // Cierra esta pantalla
             });
         });
+    }
+
+    /** Solo letras (incluidas tildes y ñ) y espacios entre palabras. */
+    private static final String SOLO_LETRAS = "\\p{L}+( \\p{L}+)*";
+
+    /** Solo dígitos. */
+    private static final String SOLO_NUMEROS = "\\d+";
+
+    private boolean validarFormulario(String nombre, String apellido, String documento,
+                                      String codigo, String programa, String correo,
+                                      String password) {
+
+        if (nombre.isEmpty() || apellido.isEmpty() || documento.isEmpty() || codigo.isEmpty()
+                || programa.isEmpty() || correo.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "Por favor, completa todos los campos obligatorios", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
+        if (!nombre.matches(SOLO_LETRAS)) {
+            mostrarError(etNombre, "El nombre solo puede contener letras");
+            return false;
+        }
+
+        if (!apellido.matches(SOLO_LETRAS)) {
+            mostrarError(etApellido, "El apellido solo puede contener letras");
+            return false;
+        }
+
+        if (!documento.matches(SOLO_NUMEROS)) {
+            mostrarError(etDocumento, "El documento solo puede contener números");
+            return false;
+        }
+
+        if (!codigo.matches(SOLO_NUMEROS)) {
+            mostrarError(etCodigo, "El código estudiantil solo puede contener números");
+            return false;
+        }
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(correo).matches()) {
+            mostrarError(etCorreo, "Escribe un correo válido, por ejemplo nombre@dominio.com");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void mostrarError(EditText campo, String mensaje) {
+        campo.setError(mensaje);
+        campo.requestFocus();
     }
 }
