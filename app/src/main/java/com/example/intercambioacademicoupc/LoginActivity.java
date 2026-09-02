@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.intercambioacademicoupc.models.AppDatabase;
 import com.example.intercambioacademicoupc.models.Usuario;
+import com.example.intercambioacademicoupc.session.SessionManager;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,6 +24,7 @@ public class LoginActivity extends AppCompatActivity {
     private Button btnLogin;
     private TextView tvIrRegistro;
     private AppDatabase db;
+    private SessionManager sesion;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +32,13 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
 
         db = AppDatabase.getDatabase(getApplicationContext());
+        sesion = new SessionManager(this);
+
+        // Si ya hay sesión activa vamos directo al perfil (HU-04)
+        if (sesion.haySesionActiva()) {
+            irAlPerfil();
+            return;
+        }
 
         etLoginCorreo = findViewById(R.id.etLoginCorreo);
         etLoginPassword = findViewById(R.id.etLoginPassword);
@@ -70,11 +79,19 @@ public class LoginActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 if (result.verified) {
                     Toast.makeText(LoginActivity.this, "¡Bienvenido, " + usuario.nombre + "!", Toast.LENGTH_SHORT).show();
-                    // Aquí navegaremos al Dashboard del Perfil (HU-04) más adelante
+                    // TODO HU-02: antes de abrir la sesión debe validarse el código 2FA.
+                    sesion.iniciarSesion(usuario.id);
+                    irAlPerfil();
                 } else {
                     Toast.makeText(LoginActivity.this, "Credenciales inválidas", Toast.LENGTH_SHORT).show();
                 }
             });
         });
+    }
+
+    private void irAlPerfil() {
+        Intent intent = new Intent(LoginActivity.this, PerfilActivity.class);
+        startActivity(intent);
+        finish();
     }
 }
