@@ -31,4 +31,18 @@ public interface UsuarioDao {
 
     @Query("SELECT * FROM cambios_perfil WHERE usuarioId = :usuarioId ORDER BY fecha DESC LIMIT 20")
     List<CambioPerfil> historialDeCambios(int usuarioId);
+
+    // ---------------- HU-05 ----------------
+    @Query("SELECT * FROM usuarios WHERE activo = 1")
+    List<Usuario> obtenerUsuariosActivos();
+
+    @Query("UPDATE usuarios SET activo = 0 WHERE id = :usuarioId")
+    void desactivarUsuario(int usuarioId);
+
+    @Query("UPDATE usuarios SET rol = :nuevoRol WHERE id = :usuarioId")
+    void actualizarRol(int usuarioId, String nuevoRol);
+
+    @Query("SELECT * FROM usuarios WHERE nombre LIKE '%' || :busqueda || '%' OR codigoEstudiantil LIKE '%' || :busqueda || '%'")
+    List<Usuario> buscarUsuarios(String busqueda);
+
 }

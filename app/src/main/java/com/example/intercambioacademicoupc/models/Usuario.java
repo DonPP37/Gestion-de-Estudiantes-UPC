@@ -27,6 +27,9 @@ public class Usuario {
     public String telefono;
     public String fotoUri;
 
+    // --- HU-05: Creación de roles ---
+    public boolean activo = true;
+
     /** Fecha (epoch millis) del último cambio hecho al perfil. 0 = nunca se ha editado. */
     @ColumnInfo(defaultValue = "0")
     public long fechaActualizacion;

@@ -15,6 +15,7 @@ public class SessionManager {
     private static final String PREFS = "sesion_upc";
     private static final String KEY_USUARIO_ID = "usuario_id";
     private static final String KEY_TOKEN = "token_jwt";
+    private static final String KEY_ROL = "rol";
 
     private final SharedPreferences prefs;
 
@@ -46,5 +47,9 @@ public class SessionManager {
 
     public void cerrarSesion() {
         prefs.edit().clear().apply();
+    }
+
+    public String getRol(){
+        return prefs.getString(KEY_ROL, "");
     }
 }
