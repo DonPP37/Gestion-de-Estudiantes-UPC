@@ -9,16 +9,13 @@ import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
-@Database(entities = {Usuario.class, CambioPerfil.class}, version = 2)
+@Database(entities = {Usuario.class, CambioPerfil.class, Curso.class}, version = 3)
 public abstract class AppDatabase extends RoomDatabase {
     public abstract UsuarioDao usuarioDao();
+    public abstract CursoDao cursoDao();
 
     private static volatile AppDatabase INSTANCIA;
 
-    /**
-     * HU-04: se agregan telefono, fotoUri y fechaActualizacion al usuario,
-     * y la tabla de auditoría cambios_perfil.
-     */
     static final Migration MIGRACION_1_2 = new Migration(1, 2) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase db) {
@@ -33,15 +30,21 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRACION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `cursos` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT, `codigo` TEXT, `descripcion` TEXT, `periodo` TEXT, `cupoMaximo` INTEGER NOT NULL, `estado` TEXT, `docenteId` INTEGER NOT NULL)");
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_cursos_codigo_periodo` ON `cursos` (`codigo`, `periodo`)");
+        }
+    };
+
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCIA == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCIA == null) {
                     INSTANCIA = Room.databaseBuilder(context.getApplicationContext(),
-                                    AppDatabase.class, "intercambios_database")
-                            .addMigrations(MIGRACION_1_2)
-                            // Si prefieres no mantener migraciones durante el desarrollo,
-                            // borra la línea de arriba y usa: .fallbackToDestructiveMigration()
+                                    AppDatabase.class, "intercambios_db_v2") // <-- Nombre cambiado
+                            .fallbackToDestructiveMigration()
                             .build();
                 }
             }

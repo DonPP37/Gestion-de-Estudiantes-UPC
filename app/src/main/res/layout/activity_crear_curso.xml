@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Crear Nuevo Curso"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"/>
+
+    <EditText
+        android:id="@+id/et_curso_nombre"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nombre del curso"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/et_curso_codigo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Código del curso (Ej: SIS-101)"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/et_curso_descripcion"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Descripción"
+        android:inputType="textMultiLine"
+        android:lines="3"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/et_curso_periodo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Periodo (Ej: 2026-2)"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/et_curso_cupo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Cupo máximo"
+        android:inputType="number"
+        android:layout_marginBottom="24dp"/>
+
+    <Button
+        android:id="@+id/btn_guardar_curso"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Guardar Borrador" />
+
+</LinearLayout>
