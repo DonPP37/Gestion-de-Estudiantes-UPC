@@ -10,6 +10,107 @@
         android:orientation="vertical"
         android:padding="24dp">
 
+        <!-- ===== SECCIÓN SUPERIOR DE ACCESOS RÁPIDOS POR ROL ===== -->
+        <LinearLayout
+            android:id="@+id/layout_accesos_admin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#F5F5F5"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Opciones del Sistema"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:textColor="#3F51B5"
+                android:layout_marginBottom="8dp"/>
+
+            <Button
+                android:id="@+id/btnAdminUsuarios"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:text="Gestionar usuarios y roles" />
+
+            <Button
+                android:id="@+id/btnCrearCurso"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:text="Crear curso" />
+
+            <Button
+                android:id="@+id/btnAdminVerCursos"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:backgroundTint="#FF9800"
+                android:text="Ver Todos los Cursos (Admin)" />
+        </LinearLayout>
+
+        <!-- ===== HU-08: PANEL DE CURSOS MATRICULADOS PARA EL ESTUDIANTE ===== -->
+        <LinearLayout
+            android:id="@+id/layout_cursos_estudiante"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#E8EAF6"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Mis Cursos Activos (HU-08)"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:textColor="#1A237E"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/tv_lista_cursos_vacia"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No estás matriculado en ningún curso actualmente."
+                android:textSize="14sp"
+                android:textColor="#5C6BC0"
+                android:fontStyle="italic"/>
+
+            <TextView
+                android:id="@+id/tv_cursos_matriculados"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="#212121"
+                android:lineSpacingExtra="4dp"
+                android:visibility="gone"
+                android:clickable="true"
+                android:focusable="true"/>
+
+            <Button
+                android:id="@+id/btn_ir_a_matricularme"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Inscribirme en un curso"
+                android:layout_marginTop="12dp"
+                android:backgroundTint="#1A237E"
+                android:textColor="@android:color/white"/>
+
+            <Button
+                android:id="@+id/btn_estudiante_ver_aulas"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Entrar a mis Aulas Virtuales"
+                android:layout_marginTop="8dp"
+                android:backgroundTint="#3F51B5"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Matrícula de Cursos (HU-07)"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#1A237E"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Selecciona el curso disponible en el que deseas matricularte:"
+        android:textSize="14sp"
+        android:layout_marginBottom="12dp" />
+
+    <Spinner
+        android:id="@+id/sp_cursos_disponibles"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btn_confirmar_matricula"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Matricularme"
+        android:backgroundTint="#3F51B5"
+        android:textColor="@android:color/white" />
+
+</LinearLayout>

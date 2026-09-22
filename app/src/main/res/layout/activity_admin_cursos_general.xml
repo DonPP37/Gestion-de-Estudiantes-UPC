@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/tv_titulo_panel_cursos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Panel de Asignaturas"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#3F51B5"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/btn_crear_nuevo_curso_docente"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Crear Nueva Asignatura (+)"
+        android:backgroundTint="#4CAF50"
+        android:textColor="@android:color/white"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Selecciona una asignatura para abrir su aula, ver o subir el contenido de estudio:"
+        android:textSize="14sp"
+        android:layout_marginBottom="12dp" />
+
+    <Spinner
+        android:id="@+id/sp_todos_los_cursos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btn_abrir_aula_curso"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Entrar a Ver Asignatura"
+        android:backgroundTint="#3F51B5"
+        android:textColor="@android:color/white" />
+
+</LinearLayout>

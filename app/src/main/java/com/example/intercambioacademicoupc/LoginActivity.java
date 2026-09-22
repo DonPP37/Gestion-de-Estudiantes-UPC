@@ -68,6 +68,14 @@ public class LoginActivity extends AppCompatActivity {
         executor.execute(() -> {
             Usuario usuario = db.usuarioDao().buscarPorCorreo(correo);
 
+            // HU-05: un usuario desactivado conserva su historial pero no puede entrar.
+            if (usuario != null && !usuario.activo) {
+                runOnUiThread(() -> Toast.makeText(LoginActivity.this,
+                        "Tu cuenta esta desactivada. Comunicate con el administrador.",
+                        Toast.LENGTH_LONG).show());
+                return;
+            }
+
             if (usuario == null) {
                 runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Credenciales inválidas", Toast.LENGTH_SHORT).show());
                 return;
@@ -80,7 +88,7 @@ public class LoginActivity extends AppCompatActivity {
                 if (result.verified) {
                     Toast.makeText(LoginActivity.this, "¡Bienvenido, " + usuario.nombre + "!", Toast.LENGTH_SHORT).show();
                     // TODO HU-02: antes de abrir la sesión debe validarse el código 2FA.
-                    sesion.iniciarSesion(usuario.id);
+                    sesion.iniciarSesion(usuario.id, usuario.rol);
                     irAlPerfil();
                 } else {
                     Toast.makeText(LoginActivity.this, "Credenciales inválidas", Toast.LENGTH_SHORT).show();

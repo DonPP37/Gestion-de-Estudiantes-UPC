@@ -15,6 +15,7 @@ public class SessionManager {
     private static final String PREFS = "sesion_upc";
     private static final String KEY_USUARIO_ID = "usuario_id";
     private static final String KEY_TOKEN = "token_jwt";
+    private static final String KEY_ROL = "rol";
 
     private final SharedPreferences prefs;
 
@@ -24,7 +25,18 @@ public class SessionManager {
     }
 
     public void iniciarSesion(int usuarioId) {
-        prefs.edit().putInt(KEY_USUARIO_ID, usuarioId).apply();
+        iniciarSesion(usuarioId, "");
+    }
+
+    /**
+     * HU-05: el rol se guarda al abrir la sesion. Por eso un cambio de rol hecho por el
+     * administrador solo surte efecto en el siguiente inicio de sesion del usuario.
+     */
+    public void iniciarSesion(int usuarioId, String rol) {
+        prefs.edit()
+                .putInt(KEY_USUARIO_ID, usuarioId)
+                .putString(KEY_ROL, rol == null ? "" : rol)
+                .apply();
     }
 
     public void guardarToken(String token) {
@@ -46,5 +58,9 @@ public class SessionManager {
 
     public void cerrarSesion() {
         prefs.edit().clear().apply();
+    }
+
+    public String getRol(){
+        return prefs.getString(KEY_ROL, "");
     }
 }

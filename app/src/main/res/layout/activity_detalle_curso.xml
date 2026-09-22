@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- CABECERA -->
+        <TextView
+            android:id="@+id/tv_det_nombre"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Nombre del Curso"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#1A237E" />
+
+        <TextView
+            android:id="@+id/tv_det_codigo_periodo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Código | Periodo"
+            android:textSize="14sp"
+            android:textColor="#757575"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:id="@+id/tv_det_descripcion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Descripción completa del curso..."
+            android:textSize="16sp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- BOTÓN DE EDICIÓN PARA EL DOCENTE -->
+        <Button
+            android:id="@+id/btn_editar_info_curso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Editar Detalles del Curso"
+            android:visibility="gone"
+            android:backgroundTint="#FF9800"
+            android:textColor="@android:color/white"
+            android:layout_marginBottom="24dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#BDBDBD"
+            android:layout_marginBottom="24dp" />
+
+        <!-- SECCIÓN DE AGREGAR CONTENIDO (SÓLO PROFESORES) -->
+        <LinearLayout
+            android:id="@+id/layout_add_contenido"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#E8F5E9"
+            android:padding="16dp"
+            android:layout_marginBottom="24dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Publicar Material de Estudio (Docente)"
+                android:textStyle="bold"
+                android:textColor="#2E7D32"
+                android:layout_marginBottom="12dp" />
+
+            <EditText
+                android:id="@+id/et_cont_titulo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Título del Material (Ej: Lectura 1)" />
+
+            <EditText
+                android:id="@+id/et_cont_descripcion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Descripción o Enlace de descarga"
+                android:layout_marginTop="8dp" />
+
+            <Spinner
+                android:id="@+id/sp_cont_tipo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="12dp" />
+
+            <Button
+                android:id="@+id/btn_subir_material"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Subir Material"
+                android:backgroundTint="#2E7D32" />
+        </LinearLayout>
+
+        <!-- LISTADO DE MATERIALES DE ESTUDIO -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Materiales de Clase y Contenido"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#37474F"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:id="@+id/tv_materiales_vacios"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No se ha publicado material aún para esta asignatura."
+            android:fontStyle="italic"
+            android:textColor="#78909C" />
+
+        <TextView
+            android:id="@+id/tv_materiales_lista"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textColor="#263238"
+            android:lineSpacingExtra="6dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</ScrollView>

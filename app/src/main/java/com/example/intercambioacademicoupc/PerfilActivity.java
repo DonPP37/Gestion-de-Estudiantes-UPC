@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -52,6 +53,8 @@ public class PerfilActivity extends AppCompatActivity {
     private TextView tvNombre, tvDocumento, tvCodigo, tvPrograma, tvCorreo, tvUltimaActualizacion;
     private EditText etTelefono, etPasswordActual, etPasswordNueva, etPasswordConfirmar;
     private Button btnCambiarFoto, btnGuardarContacto, btnCambiarPassword, btnHistorial, btnCerrarSesion;
+    /** HU-05 / HU-06: accesos que solo ve el rol correspondiente. */
+    private Button btnAdminUsuarios, btnCrearCurso, btnAdminVerCursos;
 
     private AppDatabase db;
     private SessionManager sesion;
@@ -104,7 +107,49 @@ public class PerfilActivity extends AppCompatActivity {
             irALogin();
         });
 
+        btnAdminUsuarios.setOnClickListener(v ->
+                startActivity(new Intent(this, AdminUsuariosActivity.class)));
+        btnCrearCurso.setOnClickListener(v -> {
+            // El docente ve directamente sus cursos creados para interactuar con ellos
+            Intent intent = new Intent(this, AdminCursosGeneralActivity.class);
+            startActivity(intent);
+        });
+
+        btnAdminVerCursos = findViewById(R.id.btnAdminVerCursos);
+        if (btnAdminVerCursos != null) {
+            btnAdminVerCursos.setOnClickListener(v -> {
+                Intent intent = new Intent(this, AdminCursosGeneralActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        Button btnIrAMatricularme = findViewById(R.id.btn_ir_a_matricularme);
+        if (btnIrAMatricularme != null) {
+            btnIrAMatricularme.setOnClickListener(v -> {
+                Intent intent = new Intent(this, MatriculaEstudianteActivity.class);
+                startActivityForResult(intent, 100);
+            });
+        }
+
+        Button btnEstudianteVerAulas = findViewById(R.id.btn_estudiante_ver_aulas);
+        if (btnEstudianteVerAulas != null) {
+            btnEstudianteVerAulas.setOnClickListener(v -> {
+                Intent intent = new Intent(this, AdminCursosGeneralActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        aplicarMenuPorRol();
+
         cargarPerfil();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (sesion.haySesionActiva() && "estudiante".equals(sesion.getRol())) {
+            cargarCursosEstudiante(sesion.getUsuarioId());
+        }
     }
 
     private void vincularVistas() {
@@ -126,6 +171,37 @@ public class PerfilActivity extends AppCompatActivity {
         btnCambiarPassword = findViewById(R.id.btnCambiarPassword);
         btnHistorial = findViewById(R.id.btnHistorial);
         btnCerrarSesion = findViewById(R.id.btnCerrarSesion);
+        btnAdminUsuarios = findViewById(R.id.btnAdminUsuarios);
+        btnCrearCurso = findViewById(R.id.btnCrearCurso);
+    }
+
+    /**
+     * HU-05: cada persona solo ve las funciones de su rol. El rol viene de la sesion, que se
+     * abrio en el login, asi que un cambio de rol se aplica en el siguiente inicio de sesion.
+     */
+    private void aplicarMenuPorRol() {
+        String rol = sesion.getRol();
+        boolean isAdmin = "administrador".equals(rol);
+        boolean isDocente = "docente".equals(rol);
+        boolean isEstudiante = "estudiante".equals(rol);
+
+        btnAdminUsuarios.setVisibility(isAdmin ? View.VISIBLE : View.GONE);
+        btnCrearCurso.setVisibility(isDocente ? View.VISIBLE : View.GONE);
+        if (btnAdminVerCursos != null) {
+            btnAdminVerCursos.setVisibility(isAdmin ? View.VISIBLE : View.GONE);
+        }
+
+        // Ocultar todo el bloque si no tiene roles especiales
+        View layoutAccesos = findViewById(R.id.layout_accesos_admin);
+        if (layoutAccesos != null) {
+            layoutAccesos.setVisibility((isAdmin || isDocente) ? View.VISIBLE : View.GONE);
+        }
+
+        // Mostrar panel de cursos activos si es estudiante (HU-08)
+        View layoutCursos = findViewById(R.id.layout_cursos_estudiante);
+        if (layoutCursos != null) {
+            layoutCursos.setVisibility(isEstudiante ? View.VISIBLE : View.GONE);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -144,6 +220,38 @@ public class PerfilActivity extends AppCompatActivity {
                 }
                 usuarioActual = u;
                 pintarPerfil(u);
+                
+                // Si es estudiante, cargar sus asignaturas matriculadas
+                if ("estudiante".equals(sesion.getRol())) {
+                    cargarCursosEstudiante(u.id);
+                }
+            });
+        });
+    }
+
+    private void cargarCursosEstudiante(int estudianteId) {
+        executor.execute(() -> {
+            List<com.example.intercambioacademicoupc.models.Curso> cursos = db.matriculaDao().obtenerCursosMatriculados(estudianteId);
+            runOnUiThread(() -> {
+                TextView tvVacio = findViewById(R.id.tv_lista_cursos_vacia);
+                TextView tvContenido = findViewById(R.id.tv_cursos_matriculados);
+                
+                if (cursos != null && !cursos.isEmpty()) {
+                    tvVacio.setVisibility(View.GONE);
+                    tvContenido.setVisibility(View.VISIBLE);
+                    
+                    StringBuilder sb = new StringBuilder();
+                    for (com.example.intercambioacademicoupc.models.Curso c : cursos) {
+                        sb.append("📖 ").append(c.nombre)
+                          .append("\n📌 Código: ").append(c.codigo)
+                          .append(" | 🗓️ Periodo: ").append(c.periodo)
+                          .append("\n----------------------------------------\n");
+                    }
+                    tvContenido.setText(sb.toString());
+                } else {
+                    tvVacio.setVisibility(View.VISIBLE);
+                    tvContenido.setVisibility(View.GONE);
+                }
             });
         });
     }
