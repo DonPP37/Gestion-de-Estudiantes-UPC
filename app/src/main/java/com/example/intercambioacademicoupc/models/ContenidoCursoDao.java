@@ -12,4 +12,7 @@ public interface ContenidoCursoDao {
 
     @Query("SELECT * FROM contenidos_curso WHERE cursoId = :cursoId ORDER BY unidad ASC, fechaPublicacion DESC")
     List<ContenidoCurso> obtenerContenidosPorCurso(int cursoId);
+
+    @Query("DELETE FROM contenidos_curso WHERE id = :contenidoId")
+    void eliminarContenido(int contenidoId);
 }

@@ -14,4 +14,10 @@ public interface CursoDao {
 
     @Query("SELECT * FROM cursos WHERE docenteId = :docenteId")
     List<Curso> obtenerCursosPorDocente(int docenteId);
+
+    @Query("SELECT * FROM cursos WHERE id = :cursoId")
+    Curso obtenerCursoPorId(int cursoId);
+
+    @Query("DELETE FROM cursos WHERE id = :cursoId")
+    void eliminarCurso(int cursoId);
 }

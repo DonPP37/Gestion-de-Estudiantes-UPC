@@ -12,8 +12,34 @@
         android:text="Recursos del Curso"
         android:textSize="22sp"
         android:textStyle="bold"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="12dp"
         android:textColor="#333333"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <Button
+            android:id="@+id/btnPublicarMaterial"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="+ Publicar Material"
+            android:visibility="gone"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/btnEliminarCurso"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Eliminar Curso"
+            android:backgroundTint="#D32F2F"
+            android:visibility="gone"
+            android:layout_marginStart="4dp"/>
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerMateriales"

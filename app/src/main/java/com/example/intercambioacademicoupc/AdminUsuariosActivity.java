@@ -8,7 +8,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.room.Room;
 
 import com.example.intercambioacademicoupc.adapters.UsuarioAdapter;
 import com.example.intercambioacademicoupc.models.AppDatabase;
@@ -48,7 +47,8 @@ public class AdminUsuariosActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         // Inicializar Room DB y Executor
-        db = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, "intercambio_db").build();
+        // Misma BD que el resto de la app (antes abría otra BD vacía)
+        db = AppDatabase.getDatabase(getApplicationContext());
         executorService = Executors.newSingleThreadExecutor();
 
         // Configurar el adaptador con los callbacks

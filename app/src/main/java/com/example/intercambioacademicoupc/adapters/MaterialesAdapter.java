@@ -20,16 +20,24 @@ public class MaterialesAdapter extends RecyclerView.Adapter<MaterialesAdapter.Ma
     private List<ContenidoCurso> materialesList;
     private Map<Integer, Long> accesosMap;
     private OnMaterialClickListener listener;
+    private OnMaterialDeleteListener deleteListener;
+    private boolean esInstructor;
     private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
 
     public interface OnMaterialClickListener {
         void onDescargarClick(ContenidoCurso material);
     }
 
-    public MaterialesAdapter(List<ContenidoCurso> list, Map<Integer, Long> accesosMap, OnMaterialClickListener listener) {
+    public interface OnMaterialDeleteListener {
+        void onDeleteClick(ContenidoCurso material);
+    }
+
+    public MaterialesAdapter(List<ContenidoCurso> list, Map<Integer, Long> accesosMap, boolean esInstructor, OnMaterialClickListener listener, OnMaterialDeleteListener deleteListener) {
         this.materialesList = list;
         this.accesosMap = accesosMap;
+        this.esInstructor = esInstructor;
         this.listener = listener;
+        this.deleteListener = deleteListener;
     }
 
     @NonNull
@@ -45,7 +53,8 @@ public class MaterialesAdapter extends RecyclerView.Adapter<MaterialesAdapter.Ma
 
         holder.tvUnidad.setText(material.unidad != null ? material.unidad : "Unidad General");
         holder.tvTitulo.setText(material.titulo);
-        holder.tvTipoTamano.setText(material.tipoMaterial + " • " + material.tamanoArchivo);
+        holder.tvDescripcion.setText(material.descripcionContenido != null ? material.descripcionContenido : "");
+        holder.tvTipoTamano.setText((material.tipoMaterial != null ? material.tipoMaterial : "DOC") + " • " + (material.tamanoArchivo != null ? material.tamanoArchivo : "1.0 MB"));
         holder.tvFecha.setText("Publicado: " + sdf.format(new Date(material.fechaPublicacion)));
 
         Long ultimoAcceso = accesosMap.get(material.id);
@@ -58,6 +67,15 @@ public class MaterialesAdapter extends RecyclerView.Adapter<MaterialesAdapter.Ma
         holder.btnDescargar.setOnClickListener(v -> {
             if (listener != null) listener.onDescargarClick(material);
         });
+
+        if (esInstructor) {
+            holder.btnEliminarMaterial.setVisibility(View.VISIBLE);
+            holder.btnEliminarMaterial.setOnClickListener(v -> {
+                if (deleteListener != null) deleteListener.onDeleteClick(material);
+            });
+        } else {
+            holder.btnEliminarMaterial.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -66,17 +84,19 @@ public class MaterialesAdapter extends RecyclerView.Adapter<MaterialesAdapter.Ma
     }
 
     public static class MaterialViewHolder extends RecyclerView.ViewHolder {
-        TextView tvUnidad, tvTitulo, tvTipoTamano, tvFecha, tvUltimoAcceso;
-        Button btnDescargar;
+        TextView tvUnidad, tvTitulo, tvDescripcion, tvTipoTamano, tvFecha, tvUltimoAcceso;
+        Button btnDescargar, btnEliminarMaterial;
 
         public MaterialViewHolder(@NonNull View itemView) {
             super(itemView);
             tvUnidad = itemView.findViewById(R.id.tvUnidad);
             tvTitulo = itemView.findViewById(R.id.tvTitulo);
+            tvDescripcion = itemView.findViewById(R.id.tvDescripcion);
             tvTipoTamano = itemView.findViewById(R.id.tvTipoTamano);
             tvFecha = itemView.findViewById(R.id.tvFecha);
             tvUltimoAcceso = itemView.findViewById(R.id.tvUltimoAcceso);
             btnDescargar = itemView.findViewById(R.id.btnDescargar);
+            btnEliminarMaterial = itemView.findViewById(R.id.btnEliminarMaterial);
         }
     }
 }

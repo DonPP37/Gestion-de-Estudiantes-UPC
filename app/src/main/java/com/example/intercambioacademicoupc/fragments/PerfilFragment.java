@@ -1,10 +1,12 @@
-package com.example.intercambioacademicoupc;
+package com.example.intercambioacademicoupc.fragments;
 
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -13,12 +15,17 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
 
+import com.example.intercambioacademicoupc.AdminUsuariosActivity;
+import com.example.intercambioacademicoupc.CrearCursoActivity;
+import com.example.intercambioacademicoupc.LoginActivity;
+import com.example.intercambioacademicoupc.R;
 import com.example.intercambioacademicoupc.models.AppDatabase;
 import com.example.intercambioacademicoupc.models.CambioPerfil;
-import com.example.intercambioacademicoupc.models.Curso;
 import com.example.intercambioacademicoupc.models.Usuario;
 import com.example.intercambioacademicoupc.session.SessionManager;
 
@@ -32,130 +39,106 @@ import java.util.regex.Pattern;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 
-/**
- * HU-04 — Consultar y actualizar los datos del perfil.
- *
- * Criterios de aceptación cubiertos:
- *  1. Muestra nombre, documento, código, programa, correo y foto.
- *  2. El usuario edita teléfono, foto y contraseña; los datos académicos son de solo lectura
- *     (los edita el administrador en HU-05).
- *  3. Los cambios se validan y se confirman con un mensaje de éxito.
- *  4. Cada cambio queda registrado con su fecha (campo fechaActualizacion + tabla cambios_perfil).
- */
-public class PerfilActivity extends AppCompatActivity {
+public class PerfilFragment extends Fragment {
 
-    /** Política mínima de contraseña (HU-03): 8 caracteres, una mayúscula y un número. */
     private static final Pattern POLITICA_PASSWORD =
             Pattern.compile("^(?=.*[A-Z])(?=.*\\d).{8,}$");
-
     private static final Pattern TELEFONO_VALIDO = Pattern.compile("^\\d{7,15}$");
 
     private ImageView ivFoto;
     private TextView tvNombre, tvDocumento, tvCodigo, tvPrograma, tvCorreo, tvUltimaActualizacion;
     private EditText etTelefono, etPasswordActual, etPasswordNueva, etPasswordConfirmar;
     private Button btnCambiarFoto, btnGuardarContacto, btnCambiarPassword, btnHistorial, btnCerrarSesion;
-    private Button btnAdminUsuarios, btnCrearCurso, btnMisCursos;
+    private Button btnAdminUsuarios, btnCrearCurso;
 
     private AppDatabase db;
     private SessionManager sesion;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private Usuario usuarioActual;
-    private String fotoUriSeleccionada;   // uri elegida pero aún no guardada
+    private String fotoUriSeleccionada;
 
-    /** Selector de imagen. Pedimos permiso persistente para poder mostrarla en próximos arranques. */
     private final ActivityResultLauncher<String[]> selectorFoto =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
                 if (uri == null) return;
                 try {
-                    getContentResolver().takePersistableUriPermission(
+                    requireActivity().getContentResolver().takePersistableUriPermission(
                             uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 } catch (SecurityException ignored) {
-                    // Algunos proveedores no otorgan permiso persistente; la foto se verá igual
-                    // durante esta sesión.
                 }
                 fotoUriSeleccionada = uri.toString();
                 ivFoto.setImageURI(uri);
-                Toast.makeText(this, "Foto seleccionada. Pulsa \"Guardar cambios\".",
+                Toast.makeText(requireContext(), "Foto seleccionada. Pulsa \"Guardar cambios\".",
                         Toast.LENGTH_SHORT).show();
             });
 
+    @Nullable
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_perfil);
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_perfil, container, false);
 
-        db = AppDatabase.getDatabase(getApplicationContext());
-        sesion = new SessionManager(this);
+        db = AppDatabase.getDatabase(requireContext().getApplicationContext());
+        sesion = new SessionManager(requireContext());
 
-        // Criterio: solo un usuario autenticado accede al perfil.
-        if (!sesion.haySesionActiva()) {
-            Toast.makeText(this, "Debes iniciar sesión", Toast.LENGTH_SHORT).show();
-            irALogin();
-            return;
-        }
+        vincularVistas(view);
 
-        vincularVistas();
-
-        btnCambiarFoto.setOnClickListener(v ->
-                selectorFoto.launch(new String[]{"image/*"}));
+        btnCambiarFoto.setOnClickListener(v -> selectorFoto.launch(new String[]{"image/*"}));
         btnGuardarContacto.setOnClickListener(v -> guardarDatosDeContacto());
         btnCambiarPassword.setOnClickListener(v -> cambiarPassword());
         btnHistorial.setOnClickListener(v -> mostrarHistorial());
         btnAdminUsuarios.setOnClickListener(v ->
-                startActivity(new Intent(this, AdminUsuariosActivity.class)));
+                startActivity(new Intent(requireContext(), AdminUsuariosActivity.class)));
         btnCrearCurso.setOnClickListener(v ->
-                startActivity(new Intent(this, CrearCursoActivity.class)));
-        btnMisCursos.setOnClickListener(v -> elegirCursoMatriculado());
+                startActivity(new Intent(requireContext(), CrearCursoActivity.class)));
         btnCerrarSesion.setOnClickListener(v -> {
             sesion.cerrarSesion();
             irALogin();
         });
 
         cargarPerfil();
+
+        return view;
     }
 
-    private void vincularVistas() {
-        ivFoto = findViewById(R.id.ivFotoPerfil);
-        tvNombre = findViewById(R.id.tvNombre);
-        tvDocumento = findViewById(R.id.tvDocumento);
-        tvCodigo = findViewById(R.id.tvCodigo);
-        tvPrograma = findViewById(R.id.tvPrograma);
-        tvCorreo = findViewById(R.id.tvCorreo);
-        tvUltimaActualizacion = findViewById(R.id.tvUltimaActualizacion);
+    private void vincularVistas(View view) {
+        ivFoto = view.findViewById(R.id.ivFotoPerfil);
+        tvNombre = view.findViewById(R.id.tvNombre);
+        tvDocumento = view.findViewById(R.id.tvDocumento);
+        tvCodigo = view.findViewById(R.id.tvCodigo);
+        tvPrograma = view.findViewById(R.id.tvPrograma);
+        tvCorreo = view.findViewById(R.id.tvCorreo);
+        tvUltimaActualizacion = view.findViewById(R.id.tvUltimaActualizacion);
 
-        etTelefono = findViewById(R.id.etTelefono);
-        etPasswordActual = findViewById(R.id.etPasswordActual);
-        etPasswordNueva = findViewById(R.id.etPasswordNueva);
-        etPasswordConfirmar = findViewById(R.id.etPasswordConfirmar);
+        etTelefono = view.findViewById(R.id.etTelefono);
+        etPasswordActual = view.findViewById(R.id.etPasswordActual);
+        etPasswordNueva = view.findViewById(R.id.etPasswordNueva);
+        etPasswordConfirmar = view.findViewById(R.id.etPasswordConfirmar);
 
-        btnCambiarFoto = findViewById(R.id.btnCambiarFoto);
-        btnGuardarContacto = findViewById(R.id.btnGuardarContacto);
-        btnCambiarPassword = findViewById(R.id.btnCambiarPassword);
-        btnHistorial = findViewById(R.id.btnHistorial);
-        btnCerrarSesion = findViewById(R.id.btnCerrarSesion);
-        btnAdminUsuarios = findViewById(R.id.btnAdminUsuarios);
-        btnCrearCurso = findViewById(R.id.btnCrearCurso);
-        btnMisCursos = findViewById(R.id.btnMisCursos);
+        btnCambiarFoto = view.findViewById(R.id.btnCambiarFoto);
+        btnGuardarContacto = view.findViewById(R.id.btnGuardarContacto);
+        btnCambiarPassword = view.findViewById(R.id.btnCambiarPassword);
+        btnHistorial = view.findViewById(R.id.btnHistorial);
+        btnCerrarSesion = view.findViewById(R.id.btnCerrarSesion);
+        btnAdminUsuarios = view.findViewById(R.id.btnAdminUsuarios);
+        btnCrearCurso = view.findViewById(R.id.btnCrearCurso);
     }
 
-    // ------------------------------------------------------------------
-    // Criterio 1: consultar los datos del perfil
-    // ------------------------------------------------------------------
     private void cargarPerfil() {
         final int id = sesion.getUsuarioId();
         executor.execute(() -> {
             Usuario u = db.usuarioDao().buscarPorId(id);
-            runOnUiThread(() -> {
-                if (u == null) {
-                    Toast.makeText(this, "No se encontró el usuario", Toast.LENGTH_SHORT).show();
-                    sesion.cerrarSesion();
-                    irALogin();
-                    return;
-                }
-                usuarioActual = u;
-                pintarPerfil(u);
-            });
+            if (isAdded()) {
+                requireActivity().runOnUiThread(() -> {
+                    if (u == null) {
+                        Toast.makeText(requireContext(), "No se encontró el usuario", Toast.LENGTH_SHORT).show();
+                        sesion.cerrarSesion();
+                        irALogin();
+                        return;
+                    }
+                    usuarioActual = u;
+                    pintarPerfil(u);
+                });
+            }
         });
     }
 
@@ -180,37 +163,8 @@ public class PerfilActivity extends AppCompatActivity {
 
         mostrarFechaActualizacion(u.fechaActualizacion);
 
-        // Botones visibles según el rol del usuario
         btnAdminUsuarios.setVisibility("administrador".equals(u.rol) ? View.VISIBLE : View.GONE);
         btnCrearCurso.setVisibility("docente".equals(u.rol) ? View.VISIBLE : View.GONE);
-        btnMisCursos.setVisibility("estudiante".equals(u.rol) ? View.VISIBLE : View.GONE);
-    }
-
-    /** Muestra los cursos en los que está matriculado el estudiante y abre sus materiales. */
-    private void elegirCursoMatriculado() {
-        if (usuarioActual == null) return;
-        final int id = usuarioActual.id;
-        executor.execute(() -> {
-            List<Curso> cursos = db.matriculaDao().obtenerCursosMatriculados(id);
-            runOnUiThread(() -> {
-                if (cursos.isEmpty()) {
-                    Toast.makeText(this, "No estás matriculado en ningún curso", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                String[] nombres = new String[cursos.size()];
-                for (int i = 0; i < cursos.size(); i++) {
-                    nombres[i] = cursos.get(i).codigo + " - " + cursos.get(i).nombre;
-                }
-                new AlertDialog.Builder(this)
-                        .setTitle("Mis cursos")
-                        .setItems(nombres, (d, which) -> {
-                            Intent intent = new Intent(this, MaterialesCursoActivity.class);
-                            intent.putExtra("CURSO_ID", cursos.get(which).id);
-                            startActivity(intent);
-                        })
-                        .show();
-            });
-        });
     }
 
     private void mostrarFechaActualizacion(long fecha) {
@@ -230,9 +184,6 @@ public class PerfilActivity extends AppCompatActivity {
         return TextUtils.isEmpty(s) ? "—" : s;
     }
 
-    // ------------------------------------------------------------------
-    // Criterio 2 y 3: editar teléfono y foto, con validación y mensaje de éxito
-    // ------------------------------------------------------------------
     private void guardarDatosDeContacto() {
         if (usuarioActual == null) return;
 
@@ -252,7 +203,7 @@ public class PerfilActivity extends AppCompatActivity {
         boolean cambioFoto = fotoUriSeleccionada != null && !igual(fotoFinal, usuarioActual.fotoUri);
 
         if (!cambioTelefono && !cambioFoto) {
-            Toast.makeText(this, "No hay cambios por guardar", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "No hay cambios por guardar", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -262,23 +213,21 @@ public class PerfilActivity extends AppCompatActivity {
         executor.execute(() -> {
             db.usuarioDao().actualizarPerfil(id, telefono.isEmpty() ? null : telefono, fotoFinal, ahora);
 
-            // Criterio 4: cada cambio queda registrado con su fecha.
             if (cambioTelefono) db.usuarioDao().registrarCambio(new CambioPerfil(id, "telefono", ahora));
             if (cambioFoto) db.usuarioDao().registrarCambio(new CambioPerfil(id, "foto", ahora));
 
             Usuario actualizado = db.usuarioDao().buscarPorId(id);
-            runOnUiThread(() -> {
-                usuarioActual = actualizado;
-                fotoUriSeleccionada = null;
-                pintarPerfil(actualizado);
-                Toast.makeText(this, "Perfil actualizado correctamente", Toast.LENGTH_LONG).show();
-            });
+            if (isAdded()) {
+                requireActivity().runOnUiThread(() -> {
+                    usuarioActual = actualizado;
+                    fotoUriSeleccionada = null;
+                    pintarPerfil(actualizado);
+                    Toast.makeText(requireContext(), "Perfil actualizado correctamente", Toast.LENGTH_LONG).show();
+                });
+            }
         });
     }
 
-    // ------------------------------------------------------------------
-    // Criterio 2 y 3: cambio de contraseña
-    // ------------------------------------------------------------------
     private void cambiarPassword() {
         if (usuarioActual == null) return;
 
@@ -287,7 +236,7 @@ public class PerfilActivity extends AppCompatActivity {
         String confirmar = etPasswordConfirmar.getText().toString();
 
         if (actual.isEmpty() || nueva.isEmpty() || confirmar.isEmpty()) {
-            Toast.makeText(this, "Completa los tres campos de contraseña", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Completa los tres campos de contraseña", Toast.LENGTH_SHORT).show();
             return;
         }
         if (!nueva.equals(confirmar)) {
@@ -315,33 +264,33 @@ public class PerfilActivity extends AppCompatActivity {
                     BCrypt.verifyer().verify(actual.toCharArray(), hashGuardado);
 
             if (!verificacion.verified) {
-                runOnUiThread(() -> {
-                    etPasswordActual.setError("La contraseña actual no es correcta");
-                    etPasswordActual.requestFocus();
-                });
+                if (isAdded()) {
+                    requireActivity().runOnUiThread(() -> {
+                        etPasswordActual.setError("La contraseña actual no es correcta");
+                        etPasswordActual.requestFocus();
+                    });
+                }
                 return;
             }
 
-            // Mismo factor 12 que en el registro (HU-01)
             String nuevoHash = BCrypt.withDefaults().hashToString(12, nueva.toCharArray());
             db.usuarioDao().actualizarPassword(id, nuevoHash, ahora);
             db.usuarioDao().registrarCambio(new CambioPerfil(id, "contrasena", ahora));
 
             Usuario actualizado = db.usuarioDao().buscarPorId(id);
-            runOnUiThread(() -> {
-                usuarioActual = actualizado;
-                etPasswordActual.setText("");
-                etPasswordNueva.setText("");
-                etPasswordConfirmar.setText("");
-                mostrarFechaActualizacion(actualizado.fechaActualizacion);
-                Toast.makeText(this, "Contraseña actualizada correctamente", Toast.LENGTH_LONG).show();
-            });
+            if (isAdded()) {
+                requireActivity().runOnUiThread(() -> {
+                    usuarioActual = actualizado;
+                    etPasswordActual.setText("");
+                    etPasswordNueva.setText("");
+                    etPasswordConfirmar.setText("");
+                    mostrarFechaActualizacion(actualizado.fechaActualizacion);
+                    Toast.makeText(requireContext(), "Contraseña actualizada correctamente", Toast.LENGTH_LONG).show();
+                });
+            }
         });
     }
 
-    // ------------------------------------------------------------------
-    // Criterio 4: historial de cambios con fecha
-    // ------------------------------------------------------------------
     private void mostrarHistorial() {
         if (usuarioActual == null) return;
         final int id = usuarioActual.id;
@@ -357,11 +306,13 @@ public class PerfilActivity extends AppCompatActivity {
                       .append(" — ").append(formatear(c.fecha)).append("\n");
                 }
             }
-            runOnUiThread(() -> new AlertDialog.Builder(this)
-                    .setTitle("Historial de cambios")
-                    .setMessage(sb.toString())
-                    .setPositiveButton("Cerrar", null)
-                    .show());
+            if (isAdded()) {
+                requireActivity().runOnUiThread(() -> new AlertDialog.Builder(requireContext())
+                        .setTitle("Historial de cambios")
+                        .setMessage(sb.toString())
+                        .setPositiveButton("Cerrar", null)
+                        .show());
+            }
         });
     }
 
@@ -382,15 +333,9 @@ public class PerfilActivity extends AppCompatActivity {
     }
 
     private void irALogin() {
-        Intent intent = new Intent(this, LoginActivity.class);
+        Intent intent = new Intent(requireContext(), LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
-        finish();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        executor.shutdown();
+        requireActivity().finish();
     }
 }

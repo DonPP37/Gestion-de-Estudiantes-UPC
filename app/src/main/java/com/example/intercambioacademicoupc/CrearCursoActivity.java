@@ -7,7 +7,6 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.room.Room;
 
 import com.example.intercambioacademicoupc.models.AppDatabase;
 import com.example.intercambioacademicoupc.models.Curso;
@@ -46,7 +45,8 @@ public class CrearCursoActivity extends AppCompatActivity {
         btnCrearCurso = findViewById(R.id.btn_guardar_curso);
 
         // Se corrige el nombre de la db para que coincida con AppDatabase.java
-        db = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, "intercambios_database").build();
+        // Misma BD que el resto de la app (antes abría otra BD vacía)
+        db = AppDatabase.getDatabase(getApplicationContext());
         executorService = Executors.newSingleThreadExecutor();
 
         btnCrearCurso.setOnClickListener(v -> guardarCurso());
@@ -65,7 +65,17 @@ public class CrearCursoActivity extends AppCompatActivity {
             return;
         }
 
-        int cupo = Integer.parseInt(cupoStr);
+        int cupo;
+        try {
+            cupo = Integer.parseInt(cupoStr);
+        } catch (NumberFormatException e) {
+            cupo = 0;
+        }
+        if (cupo <= 0) {
+            etCupo.setError("Ingresa un cupo válido mayor a 0");
+            etCupo.requestFocus();
+            return;
+        }
 
         Curso nuevoCurso = new Curso();
         nuevoCurso.nombre = nombre;

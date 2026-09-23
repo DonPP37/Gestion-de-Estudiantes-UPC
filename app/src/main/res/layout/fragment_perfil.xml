@@ -176,7 +176,7 @@
             android:layout_marginTop="8dp"
             android:text="Ver historial de cambios" />
 
-        <!-- ===== ACCESOS SEGÚN ROL (HU-05, HU-06, materiales) ===== -->
+        <!-- ===== ACCESOS SEGÚN ROL ===== -->
         <Button
             android:id="@+id/btnAdminUsuarios"
             android:layout_width="match_parent"
@@ -191,14 +191,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="Crear curso"
-            android:visibility="gone" />
-
-        <Button
-            android:id="@+id/btnMisCursos"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Materiales de mis cursos"
             android:visibility="gone" />
 
         <Button

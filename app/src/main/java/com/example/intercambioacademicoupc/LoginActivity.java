@@ -34,6 +34,9 @@ public class LoginActivity extends AppCompatActivity {
         db = AppDatabase.getDatabase(getApplicationContext());
         sesion = new SessionManager(this);
 
+        // Abre la BD de una vez para que se carguen los usuarios de prueba antes del primer login
+        Executors.newSingleThreadExecutor().execute(() -> db.getOpenHelper().getWritableDatabase());
+
         // Si ya hay sesión activa vamos directo al perfil (HU-04)
         if (sesion.haySesionActiva()) {
             irAlPerfil();
@@ -73,6 +76,12 @@ public class LoginActivity extends AppCompatActivity {
                 return;
             }
 
+            // HU-05: un usuario desactivado no puede ingresar
+            if (!usuario.activo) {
+                runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Usuario desactivado. Contacta al administrador", Toast.LENGTH_LONG).show());
+                return;
+            }
+
             // Verificar la contraseña contra el hash de la base de datos
             BCrypt.Result result = BCrypt.verifyer().verify(password.toCharArray(), usuario.passwordHash);
 
@@ -80,7 +89,7 @@ public class LoginActivity extends AppCompatActivity {
                 if (result.verified) {
                     Toast.makeText(LoginActivity.this, "¡Bienvenido, " + usuario.nombre + "!", Toast.LENGTH_SHORT).show();
                     // TODO HU-02: antes de abrir la sesión debe validarse el código 2FA.
-                    sesion.iniciarSesion(usuario.id);
+                    sesion.iniciarSesion(usuario.id, usuario.rol);
                     irAlPerfil();
                 } else {
                     Toast.makeText(LoginActivity.this, "Credenciales inválidas", Toast.LENGTH_SHORT).show();
@@ -90,7 +99,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void irAlPerfil() {
-        Intent intent = new Intent(LoginActivity.this, PerfilActivity.class);
+        Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
         startActivity(intent);
         finish();
     }

@@ -1,6 +1,7 @@
 package com.example.intercambioacademicoupc.models;
 
 import android.content.Context;
+import android.database.Cursor;
 
 import androidx.annotation.NonNull;
 import androidx.room.Database;
@@ -8,6 +9,8 @@ import androidx.room.Room;
 import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
+
+import java.util.concurrent.Executors;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 
@@ -17,8 +20,9 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
     Curso.class,
     ContenidoCurso.class,
     RegistroAccesoMaterial.class,
-    Matricula.class
-}, version = 4)
+    Matricula.class,
+    Entrega.class
+}, version = 7) // Debe coincidir con la última migración (6 -> 7)
 
 public abstract class AppDatabase extends RoomDatabase {
     public abstract UsuarioDao usuarioDao();
@@ -26,8 +30,10 @@ public abstract class AppDatabase extends RoomDatabase {
 
     public abstract MatriculaDao matriculaDao();
     public abstract ContenidoCursoDao contenidoCursoDao();
-    private static volatile AppDatabase INSTANCIA;
     public abstract RegistroAccesoMaterialDao registroAccesoMaterialDao();
+    public abstract EntregaDao entregaDao();
+
+    private static volatile AppDatabase INSTANCIA;
 
     static final Migration MIGRACION_1_2 = new Migration(1, 2) {
         @Override
@@ -48,8 +54,22 @@ public abstract class AppDatabase extends RoomDatabase {
         public void migrate(@NonNull SupportSQLiteDatabase db) {
             db.execSQL("CREATE TABLE IF NOT EXISTS `cursos` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT, `codigo` TEXT, `descripcion` TEXT, `periodo` TEXT, `cupoMaximo` INTEGER NOT NULL, `estado` TEXT, `docenteId` INTEGER NOT NULL)");
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_cursos_codigo_periodo` ON `cursos` (`codigo`, `periodo`)");
+            // HU-05: columna 'activo' que no se estaba creando en ninguna migración
+            if (!existeColumna(db, "usuarios", "activo")) {
+                db.execSQL("ALTER TABLE usuarios ADD COLUMN activo INTEGER NOT NULL DEFAULT 1");
+            }
         }
     };
+
+    private static boolean existeColumna(SupportSQLiteDatabase db, String tabla, String columna) {
+        try (Cursor c = db.query("PRAGMA table_info(" + tabla + ")")) {
+            int idx = c.getColumnIndex("name");
+            while (c.moveToNext()) {
+                if (columna.equals(c.getString(idx))) return true;
+            }
+        }
+        return false;
+    }
 
     static final Migration MIGRACION_3_4 = new Migration(3, 4) {
         @Override
@@ -79,21 +99,36 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRACION_6_7 = new Migration(6, 7) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `entregas` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `cursoId` INTEGER NOT NULL, `estudianteId` INTEGER NOT NULL, `tituloTarea` TEXT, `descripcionEntrega` TEXT, `archivoUrl` TEXT, `fechaEntrega` INTEGER NOT NULL, `estado` TEXT)");
+        }
+    };
+
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCIA == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCIA == null) {
                     INSTANCIA = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "intercambios_db_v2") // <-- Nombre cambiado
-                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6)
+                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7)
                             .fallbackToDestructiveMigration()
+                            .addCallback(new RoomDatabase.Callback() {
+                                @Override
+                                public void onOpen(@NonNull SupportSQLiteDatabase db) {
+                                    super.onOpen(db);
+                                    // Carga admin, docente, estudiante, curso y materiales de prueba
+                                    Executors.newSingleThreadExecutor().execute(() -> precargarDatosDePrueba(INSTANCIA));
+                                }
+                            })
                             .build();
                 }
             }
         }
         return INSTANCIA;
     }
-    private static void precargarDatosDePrueba(AppDatabase db) {
+    private static synchronized void precargarDatosDePrueba(AppDatabase db) {
         try {
             Usuario adminExistente = db.usuarioDao().buscarPorCorreo("admin@upc.edu");
             if (adminExistente == null) {
@@ -155,6 +190,27 @@ public abstract class AppDatabase extends RoomDatabase {
                     matriculas.cursoId = (int) cursoIdInserted;
                     matriculas.fechaMatricula = System.currentTimeMillis();
                     db.matriculaDao().matricular(matriculas);
+
+                    // Materiales de prueba para HU de materiales del curso
+                    ContenidoCurso m1 = new ContenidoCurso();
+                    m1.cursoId = (int) cursoIdInserted;
+                    m1.unidad = "Unidad 1";
+                    m1.titulo = "Introducción a Android";
+                    m1.descripcionContenido = "Ciclo de vida de las Activities";
+                    m1.tipoMaterial = "PDF";
+                    m1.tamanoArchivo = "2.5 MB";
+                    m1.fechaPublicacion = System.currentTimeMillis();
+                    db.contenidoCursoDao().insertarContenido(m1);
+
+                    ContenidoCurso m2 = new ContenidoCurso();
+                    m2.cursoId = (int) cursoIdInserted;
+                    m2.unidad = "Unidad 2";
+                    m2.titulo = "Persistencia con Room";
+                    m2.descripcionContenido = "Entidades, DAOs y migraciones";
+                    m2.tipoMaterial = "PPTX";
+                    m2.tamanoArchivo = "4.1 MB";
+                    m2.fechaPublicacion = System.currentTimeMillis();
+                    db.contenidoCursoDao().insertarContenido(m2);
                 }
             }
         } catch (Exception e) {

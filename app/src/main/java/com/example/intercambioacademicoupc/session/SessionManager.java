@@ -24,8 +24,11 @@ public class SessionManager {
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    public void iniciarSesion(int usuarioId) {
-        prefs.edit().putInt(KEY_USUARIO_ID, usuarioId).apply();
+    public void iniciarSesion(int usuarioId, String rol) {
+        prefs.edit()
+                .putInt(KEY_USUARIO_ID, usuarioId)
+                .putString(KEY_ROL, rol) // Antes nunca se guardaba y getRol() siempre devolvía ""
+                .apply();
     }
 
     public void guardarToken(String token) {

@@ -20,11 +20,14 @@
         </activity>
 
         <activity android:name=".MainActivity" android:exported="false" />
+        <activity android:name=".DashboardActivity" android:exported="false" />
         <activity android:name=".PerfilActivity" android:exported="false" />
 
         <!-- HU-05 - HU-06 -->
         <activity android:name=".AdminUsuariosActivity" android:exported="false" />
         <activity android:name=".CrearCursoActivity" android:exported="false" />
+        <!-- Materiales del curso: no estaba declarada y la app se cerraba al abrirla -->
+        <activity android:name=".MaterialesCursoActivity" android:exported="false" />
 
     </application>
 
