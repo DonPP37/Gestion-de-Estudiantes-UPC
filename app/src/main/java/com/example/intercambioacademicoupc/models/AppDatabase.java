@@ -9,16 +9,23 @@ import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
-@Database(entities = {Usuario.class, CambioPerfil.class, Curso.class}, version = 3)
+import at.favre.lib.crypto.bcrypt.BCrypt;
+
+@Database(entities = {
+    Usuario.class,
+    CambioPerfil.class,
+    Curso.class,
+    ContenidoCurso.class,
+    RegistroAccesoMaterial.class,
+    Matricula.class
+}, version = 4)
+
 public abstract class AppDatabase extends RoomDatabase {
     public abstract UsuarioDao usuarioDao();
     public abstract CursoDao cursoDao();
-<<<<<<< Updated upstream
 
-=======
     public abstract MatriculaDao matriculaDao();
     public abstract ContenidoCursoDao contenidoCursoDao();
->>>>>>> Stashed changes
     private static volatile AppDatabase INSTANCIA;
     public abstract RegistroAccesoMaterialDao registroAccesoMaterialDao();
 
@@ -44,8 +51,6 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
-<<<<<<< Updated upstream
-=======
     static final Migration MIGRACION_3_4 = new Migration(3, 4) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase db) {
@@ -74,23 +79,86 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
->>>>>>> Stashed changes
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCIA == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCIA == null) {
                     INSTANCIA = Room.databaseBuilder(context.getApplicationContext(),
-<<<<<<< Updated upstream
                                     AppDatabase.class, "intercambios_db_v2") // <-- Nombre cambiado
-=======
-                                    AppDatabase.class, "intercambios_db_v2")
                             .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6)
->>>>>>> Stashed changes
                             .fallbackToDestructiveMigration()
                             .build();
                 }
             }
         }
         return INSTANCIA;
+    }
+    private static void precargarDatosDePrueba(AppDatabase db) {
+        try {
+            Usuario adminExistente = db.usuarioDao().buscarPorCorreo("admin@upc.edu");
+            if (adminExistente == null) {
+                // 1. Crear Admin
+                Usuario admin = new Usuario();
+                admin.nombre = "Administrador";
+                admin.apellido = "General";
+                admin.documento = "10000001";
+                admin.codigoEstudiantil = "00000001";
+                admin.programa = "Sistemas";
+                admin.correo = "admin@upc.edu";
+                admin.passwordHash = BCrypt.withDefaults().hashToString(12, "Admin1234".toCharArray());
+                admin.rol = "administrador";
+                admin.activo = true;
+                db.usuarioDao().insertarUsuario(admin);
+
+                // 2. Crear Docente
+                Usuario docente = new Usuario();
+                docente.nombre = "Carlos";
+                docente.apellido = "Docente";
+                docente.documento = "20000002";
+                docente.codigoEstudiantil = "00000002";
+                docente.programa = "Ingeniería";
+                docente.correo = "docente@upc.edu";
+                docente.passwordHash = BCrypt.withDefaults().hashToString(12, "Docente1234".toCharArray());
+                docente.rol = "docente";
+                docente.activo = true;
+                db.usuarioDao().insertarUsuario(docente);
+
+                // 3. Crear Estudiante
+                Usuario estudiante = new Usuario();
+                estudiante.nombre = "Juan";
+                estudiante.apellido = "Estudiante";
+                estudiante.documento = "30000003";
+                estudiante.codigoEstudiantil = "00000003";
+                estudiante.programa = "Sistemas";
+                estudiante.correo = "estudiante@upc.edu";
+                estudiante.passwordHash = BCrypt.withDefaults().hashToString(12, "Estudiante1234".toCharArray());
+                estudiante.rol = "estudiante";
+                estudiante.activo = true;
+                db.usuarioDao().insertarUsuario(estudiante);
+
+                Usuario docenteDb = db.usuarioDao().buscarPorCorreo("docente@upc.edu");
+                Usuario estudianteDb = db.usuarioDao().buscarPorCorreo("estudiante@upc.edu");
+
+                if (docenteDb != null && estudianteDb != null) {
+                    Curso curso = new Curso();
+                    curso.nombre = "Desarrollo de Aplicaciones Móviles";
+                    curso.codigo = "INF321";
+                    curso.descripcion = "Curso avanzado de Android con Room y Clean Architecture.";
+                    curso.periodo = "2026-2";
+                    curso.cupoMaximo = 30;
+                    curso.estado = "publicado";
+                    curso.docenteId = docenteDb.id;
+                    long cursoIdInserted = db.cursoDao().insert(curso);
+
+                    Matricula matriculas = new Matricula();
+                    matriculas.estudianteId = estudianteDb.id;
+                    matriculas.cursoId = (int) cursoIdInserted;
+                    matriculas.fechaMatricula = System.currentTimeMillis();
+                    db.matriculaDao().matricular(matriculas);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
