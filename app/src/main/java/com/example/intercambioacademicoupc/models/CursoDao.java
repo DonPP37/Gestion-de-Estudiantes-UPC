@@ -18,6 +18,9 @@ public interface CursoDao {
     @Query("SELECT * FROM cursos WHERE id = :cursoId")
     Curso obtenerCursoPorId(int cursoId);
 
+    @Query("SELECT * FROM cursos WHERE codigo LIKE '%' || :termino || '%' OR nombre LIKE '%' || :termino || '%'")
+    List<Curso> buscarCursos(String termino);
+
     @Query("DELETE FROM cursos WHERE id = :cursoId")
     void eliminarCurso(int cursoId);
 }

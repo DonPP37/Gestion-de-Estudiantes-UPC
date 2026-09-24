@@ -22,7 +22,9 @@ import com.example.intercambioacademicoupc.adapters.MaterialesAdapter;
 import com.example.intercambioacademicoupc.models.AppDatabase;
 import com.example.intercambioacademicoupc.models.ContenidoCurso;
 import com.example.intercambioacademicoupc.models.Curso;
+import com.example.intercambioacademicoupc.models.Matricula;
 import com.example.intercambioacademicoupc.models.RegistroAccesoMaterial;
+import com.example.intercambioacademicoupc.models.Usuario;
 import com.example.intercambioacademicoupc.session.SessionManager;
 
 import java.util.HashMap;
@@ -34,7 +36,7 @@ import java.util.concurrent.Executors;
 public class MaterialesCursoActivity extends AppCompatActivity {
 
     private RecyclerView recyclerMateriales;
-    private Button btnPublicarMaterial, btnEliminarCurso;
+    private Button btnPublicarMaterial, btnEliminarCurso, btnInscribirEstudiante;
     private AppDatabase db;
     private SessionManager sessionManager;
     private int cursoId;
@@ -90,6 +92,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
         recyclerMateriales = findViewById(R.id.recyclerMateriales);
         btnPublicarMaterial = findViewById(R.id.btnPublicarMaterial);
         btnEliminarCurso = findViewById(R.id.btnEliminarCurso);
+        btnInscribirEstudiante = findViewById(R.id.btnInscribirEstudiante);
 
         recyclerMateriales.setLayoutManager(new LinearLayoutManager(this));
 
@@ -110,6 +113,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
         btnPublicarMaterial.setOnClickListener(v -> mostrarDialogoPublicarMaterial());
         btnEliminarCurso.setOnClickListener(v -> confirmarEliminarCurso());
+        btnInscribirEstudiante.setOnClickListener(v -> mostrarDialogoBuscarEstudianteParaInscribir());
     }
 
     private void verificarAccesoYCargarMateriales() {
@@ -134,9 +138,11 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                 if (esInstructor) {
                     btnPublicarMaterial.setVisibility(View.VISIBLE);
                     btnEliminarCurso.setVisibility(View.VISIBLE);
+                    btnInscribirEstudiante.setVisibility(View.VISIBLE);
                 } else {
                     btnPublicarMaterial.setVisibility(View.GONE);
                     btnEliminarCurso.setVisibility(View.GONE);
+                    btnInscribirEstudiante.setVisibility(View.GONE);
                 }
             });
 
@@ -158,14 +164,73 @@ public class MaterialesCursoActivity extends AppCompatActivity {
             }
 
             runOnUiThread(() -> {
-                MaterialesAdapter adapter = new MaterialesAdapter(materiales, accesosMap, esInstructor, material -> {
-                    registrarAccesoYDescargar(material);
-                }, material -> {
-                    // Criterio HU-09: El docente puede eliminar o reemplazar un recurso
-                    confirmarEliminarMaterial(material);
-                });
+                MaterialesAdapter adapter = new MaterialesAdapter(materiales, accesosMap, esInstructor, this::registrarAccesoYDescargar, this::confirmarEliminarMaterial);
                 recyclerMateriales.setAdapter(adapter);
             });
+        });
+    }
+
+    private void mostrarDialogoBuscarEstudianteParaInscribir() {
+        EditText input = new EditText(this);
+        input.setHint("Nombre, apellido o código del estudiante");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Inscribir Estudiante al Curso")
+                .setView(input)
+                .setPositiveButton("Buscar", (dialog, which) -> {
+                    String query = input.getText().toString().trim();
+                    if (query.isEmpty()) {
+                        Toast.makeText(this, "Ingresa un término de búsqueda", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    buscarYMostrarEstudiantes(query);
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    private void buscarYMostrarEstudiantes(String termino) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<Usuario> estudiantes = db.usuarioDao().buscarEstudiantes(termino);
+            runOnUiThread(() -> {
+                if (estudiantes.isEmpty()) {
+                    Toast.makeText(this, "No se encontraron estudiantes con ese criterio", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] nombres = new String[estudiantes.size()];
+                for (int i = 0; i < estudiantes.size(); i++) {
+                    nombres[i] = estudiantes.get(i).nombre + " " + estudiantes.get(i).apellido + " (Cod: " + estudiantes.get(i).codigoEstudiantil + ")";
+                }
+                new AlertDialog.Builder(this)
+                        .setTitle("Seleccionar Estudiante a Inscribir")
+                        .setItems(nombres, (d, which) -> {
+                            Usuario estElegido = estudiantes.get(which);
+                            inscribirEstudianteDirecto(estElegido.id, estElegido.nombre + " " + estElegido.apellido);
+                        })
+                        .show();
+            });
+        });
+    }
+
+    private void inscribirEstudianteDirecto(int estudianteId, String nombreEstudiante) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            int yaInscrito = db.matriculaDao().verificarSiYaEstaInscrito(estudianteId, cursoId);
+            if (yaInscrito > 0) {
+                runOnUiThread(() ->
+                        Toast.makeText(this, "El estudiante " + nombreEstudiante + " ya está matriculado en este curso", Toast.LENGTH_LONG).show()
+                );
+                return;
+            }
+
+            Matricula m = new Matricula();
+            m.estudianteId = estudianteId;
+            m.cursoId = cursoId;
+            m.fechaMatricula = System.currentTimeMillis();
+            db.matriculaDao().matricular(m);
+
+            runOnUiThread(() ->
+                    Toast.makeText(this, "¡Estudiante " + nombreEstudiante + " matriculado con éxito!", Toast.LENGTH_LONG).show()
+            );
         });
     }
 
@@ -221,7 +286,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                         contenido.tipoMaterial = obtenerTipoDesdeNombre(nombreArchivoSeleccionado);
                         contenido.tamanoArchivo = tamanoCalculado;
                         contenido.urlArchivo = archivoUriSeleccionado;
-                        contenido.fechaPublicacion = System.currentTimeMillis(); // Criterio HU-09: fecha de publicación
+                        contenido.fechaPublicacion = System.currentTimeMillis();
 
                         db.contenidoCursoDao().insertarContenido(contenido);
 
@@ -285,7 +350,6 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
     private void registrarAccesoYDescargar(ContenidoCurso material) {
         Executors.newSingleThreadExecutor().execute(() -> {
-            // Criterio HU-10: Registrar fecha de último acceso del estudiante al recurso
             RegistroAccesoMaterial registro = new RegistroAccesoMaterial();
             registro.estudianteId = usuarioId;
             registro.materialId = material.id;

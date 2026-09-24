@@ -45,4 +45,7 @@ public interface UsuarioDao {
     @Query("SELECT * FROM usuarios WHERE nombre LIKE '%' || :busqueda || '%' OR codigoEstudiantil LIKE '%' || :busqueda || '%'")
     List<Usuario> buscarUsuarios(String busqueda);
 
+    @Query("SELECT * FROM usuarios WHERE rol = 'estudiante' AND (nombre LIKE '%' || :busqueda || '%' OR apellido LIKE '%' || :busqueda || '%' OR codigoEstudiantil LIKE '%' || :busqueda || '%' OR documento LIKE '%' || :busqueda || '%')")
+    List<Usuario> buscarEstudiantes(String busqueda);
+
 }

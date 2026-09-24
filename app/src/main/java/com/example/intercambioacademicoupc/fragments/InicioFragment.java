@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +22,7 @@ import com.example.intercambioacademicoupc.R;
 import com.example.intercambioacademicoupc.models.AppDatabase;
 import com.example.intercambioacademicoupc.models.Curso;
 import com.example.intercambioacademicoupc.models.Entrega;
+import com.example.intercambioacademicoupc.models.Matricula;
 import com.example.intercambioacademicoupc.models.Usuario;
 import com.example.intercambioacademicoupc.session.SessionManager;
 
@@ -30,7 +32,7 @@ import java.util.concurrent.Executors;
 public class InicioFragment extends Fragment {
 
     private TextView tvBienvenidaInicio, tvRolInfo;
-    private Button btnAccionRol, btnEntregarTarea, btnDocentePublicar;
+    private Button btnAccionRol, btnBuscarInscribirCurso, btnEntregarTarea, btnDocentePublicar;
     private AppDatabase db;
     private SessionManager sessionManager;
     private Usuario usuarioActual;
@@ -43,6 +45,7 @@ public class InicioFragment extends Fragment {
         tvBienvenidaInicio = view.findViewById(R.id.tvBienvenidaInicio);
         tvRolInfo = view.findViewById(R.id.tvRolInfo);
         btnAccionRol = view.findViewById(R.id.btnAccionRol);
+        btnBuscarInscribirCurso = view.findViewById(R.id.btnBuscarInscribirCurso);
         btnEntregarTarea = view.findViewById(R.id.btnEntregarTarea);
         btnDocentePublicar = view.findViewById(R.id.btnDocentePublicar);
 
@@ -58,7 +61,7 @@ public class InicioFragment extends Fragment {
         int usuarioId = sessionManager.getUsuarioId();
         Executors.newSingleThreadExecutor().execute(() -> {
             usuarioActual = db.usuarioDao().buscarPorId(usuarioId);
-            if (usuarioActual != null) {
+            if (usuarioActual != null && isAdded()) {
                 requireActivity().runOnUiThread(this.updateUIByRole());
             }
         });
@@ -74,6 +77,9 @@ public class InicioFragment extends Fragment {
                 btnAccionRol.setText("Ver Materiales de mis Cursos");
                 btnAccionRol.setOnClickListener(v -> elegirCursoMatriculadoParaMateriales());
 
+                btnBuscarInscribirCurso.setVisibility(View.VISIBLE);
+                btnBuscarInscribirCurso.setOnClickListener(v -> mostrarDialogoBuscarCursoParaInscribirse());
+
                 btnEntregarTarea.setVisibility(View.VISIBLE);
                 btnEntregarTarea.setOnClickListener(v -> elegirCursoParaEntrega());
 
@@ -84,6 +90,7 @@ public class InicioFragment extends Fragment {
                 btnAccionRol.setText("Crear Curso / Administrar Asignatura");
                 btnAccionRol.setOnClickListener(v -> startActivity(new Intent(requireContext(), CrearCursoActivity.class)));
 
+                btnBuscarInscribirCurso.setVisibility(View.GONE);
                 btnEntregarTarea.setVisibility(View.GONE);
                 btnDocentePublicar.setVisibility(View.VISIBLE);
                 btnDocentePublicar.setOnClickListener(v -> elegirCursoDocenteParaPublicar());
@@ -93,10 +100,75 @@ public class InicioFragment extends Fragment {
                 btnAccionRol.setText("Gestionar Usuarios");
                 btnAccionRol.setOnClickListener(v -> startActivity(new Intent(requireContext(), AdminUsuariosActivity.class)));
 
+                btnBuscarInscribirCurso.setVisibility(View.GONE);
                 btnEntregarTarea.setVisibility(View.GONE);
                 btnDocentePublicar.setVisibility(View.GONE);
             }
         };
+    }
+
+    private void mostrarDialogoBuscarCursoParaInscribirse() {
+        EditText input = new EditText(requireContext());
+        input.setHint("Código o nombre del curso (Ej: INF321)");
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Buscar e Inscribirse a Curso")
+                .setView(input)
+                .setPositiveButton("Buscar", (dialog, which) -> {
+                    String query = input.getText().toString().trim();
+                    if (query.isEmpty()) {
+                        Toast.makeText(requireContext(), "Ingresa un término de búsqueda", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    buscarYMostrarCursos(query);
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    private void buscarYMostrarCursos(String termino) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<Curso> resultados = db.cursoDao().buscarCursos(termino);
+            requireActivity().runOnUiThread(() -> {
+                if (resultados.isEmpty()) {
+                    Toast.makeText(requireContext(), "No se encontraron cursos con ese código o nombre", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] nombres = new String[resultados.size()];
+                for (int i = 0; i < resultados.size(); i++) {
+                    nombres[i] = resultados.get(i).codigo + " - " + resultados.get(i).nombre + " (" + resultados.get(i).periodo + ")";
+                }
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Resultados de Cursos")
+                        .setItems(nombres, (d, which) -> {
+                            Curso cursoElegido = resultados.get(which);
+                            inscribirEstudianteEnCurso(cursoElegido.id, cursoElegido.nombre);
+                        })
+                        .show();
+            });
+        });
+    }
+
+    private void inscribirEstudianteEnCurso(int cursoId, String nombreCurso) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            int yaInscrito = db.matriculaDao().verificarSiYaEstaInscrito(usuarioActual.id, cursoId);
+            if (yaInscrito > 0) {
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(requireContext(), "Ya estás matriculado en este curso", Toast.LENGTH_SHORT).show()
+                );
+                return;
+            }
+
+            Matricula m = new Matricula();
+            m.estudianteId = usuarioActual.id;
+            m.cursoId = cursoId;
+            m.fechaMatricula = System.currentTimeMillis();
+            db.matriculaDao().matricular(m);
+
+            requireActivity().runOnUiThread(() ->
+                    Toast.makeText(requireContext(), "¡Te has matriculado exitosamente en " + nombreCurso + "!", Toast.LENGTH_LONG).show()
+            );
+        });
     }
 
     private void elegirCursoMatriculadoParaMateriales() {
@@ -104,7 +176,7 @@ public class InicioFragment extends Fragment {
             List<Curso> cursos = db.matriculaDao().obtenerCursosMatriculados(usuarioActual.id);
             requireActivity().runOnUiThread(() -> {
                 if (cursos.isEmpty()) {
-                    Toast.makeText(requireContext(), "No estás matriculado en ningún curso", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "No estás matriculado en ningún curso. Usa 'Buscar e Inscribirme' para unirte a uno.", Toast.LENGTH_LONG).show();
                     return;
                 }
                 String[] nombres = new String[cursos.size()];
@@ -128,7 +200,7 @@ public class InicioFragment extends Fragment {
             List<Curso> cursos = db.matriculaDao().obtenerCursosMatriculados(usuarioActual.id);
             requireActivity().runOnUiThread(() -> {
                 if (cursos.isEmpty()) {
-                    Toast.makeText(requireContext(), "No estás matriculado en ningún curso para entregar tareas", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "No estás matriculado en ningún curso", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 String[] nombres = new String[cursos.size()];
@@ -144,7 +216,7 @@ public class InicioFragment extends Fragment {
     }
 
     private void mostrarDialogoEntrega(int cursoId) {
-        android.widget.EditText inputTitulo = new android.widget.EditText(requireContext());
+        EditText inputTitulo = new EditText(requireContext());
         inputTitulo.setHint("Título de la tarea o entregable (Ej: Avance Proyecto)");
 
         new AlertDialog.Builder(requireContext())
@@ -180,7 +252,6 @@ public class InicioFragment extends Fragment {
             List<Curso> cursos = db.cursoDao().obtenerCursosPorDocente(usuarioActual.id);
             requireActivity().runOnUiThread(() -> {
                 if (cursos.isEmpty()) {
-                    // Si no hay cursos propios, mostrar todos o crear
                     Toast.makeText(requireContext(), "No tienes cursos asignados. Puedes crear uno.", Toast.LENGTH_LONG).show();
                     startActivity(new Intent(requireContext(), CrearCursoActivity.class));
                     return;

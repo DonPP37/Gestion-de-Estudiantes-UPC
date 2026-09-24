@@ -33,6 +33,14 @@
         android:layout_marginBottom="12dp"/>
 
     <Button
+        android:id="@+id/btnBuscarInscribirCurso"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Buscar e Inscribirme a un Curso"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone"/>
+
+    <Button
         android:id="@+id/btnEntregarTarea"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
