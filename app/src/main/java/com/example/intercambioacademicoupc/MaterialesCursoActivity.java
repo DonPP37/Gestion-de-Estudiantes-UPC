@@ -1,32 +1,47 @@
 package com.example.intercambioacademicoupc;
 
+import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.MediaController;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.VideoView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.intercambioacademicoupc.adapters.MaterialesAdapter;
+import com.example.intercambioacademicoupc.models.ActividadCurso;
 import com.example.intercambioacademicoupc.models.AppDatabase;
 import com.example.intercambioacademicoupc.models.ContenidoCurso;
 import com.example.intercambioacademicoupc.models.Curso;
+import com.example.intercambioacademicoupc.models.Entrega;
 import com.example.intercambioacademicoupc.models.Matricula;
 import com.example.intercambioacademicoupc.models.RegistroAccesoMaterial;
 import com.example.intercambioacademicoupc.models.Usuario;
 import com.example.intercambioacademicoupc.session.SessionManager;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -35,18 +50,24 @@ import java.util.concurrent.Executors;
 
 public class MaterialesCursoActivity extends AppCompatActivity {
 
-    private RecyclerView recyclerMateriales;
-    private Button btnPublicarMaterial, btnEliminarCurso, btnInscribirEstudiante;
+    private TextView tvCursoNombre, tvCursoCodigoPeriodo, tvCursoDescripcion;
+    private RecyclerView recyclerEspacioCurso;
+    private Button btnTabMateriales, btnTabActividades, btnTabConfig, btnAccionEspacioCurso;
+
     private AppDatabase db;
     private SessionManager sessionManager;
     private int cursoId;
     private int usuarioId;
     private String rolUsuario;
     private Curso cursoActual;
+    private boolean esInstructor = false;
+    private int pestanaActual = 0; // 0 = Materiales, 1 = Actividades, 2 = Gestión
 
     private String archivoUriSeleccionado = null;
     private String nombreArchivoSeleccionado = "Documento.pdf";
     private String tamanoCalculado = "2.0 MB";
+
+    private final SimpleDateFormat sdfFechaHora = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
 
     private final ActivityResultLauncher<String[]> selectorArchivo =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
@@ -68,7 +89,6 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                 } catch (Exception ignored) {
                 }
 
-                // Criterio HU-09: hasta 20 MB
                 if (fileSize > 20L * 1024 * 1024) {
                     Toast.makeText(this, "El archivo excede el límite máximo de 20 MB", Toast.LENGTH_LONG).show();
                     archivoUriSeleccionado = null;
@@ -89,12 +109,17 @@ public class MaterialesCursoActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_materiales_curso);
 
-        recyclerMateriales = findViewById(R.id.recyclerMateriales);
-        btnPublicarMaterial = findViewById(R.id.btnPublicarMaterial);
-        btnEliminarCurso = findViewById(R.id.btnEliminarCurso);
-        btnInscribirEstudiante = findViewById(R.id.btnInscribirEstudiante);
+        tvCursoNombre = findViewById(R.id.tvCursoNombre);
+        tvCursoCodigoPeriodo = findViewById(R.id.tvCursoCodigoPeriodo);
+        tvCursoDescripcion = findViewById(R.id.tvCursoDescripcion);
+        recyclerEspacioCurso = findViewById(R.id.recyclerEspacioCurso);
 
-        recyclerMateriales.setLayoutManager(new LinearLayoutManager(this));
+        btnTabMateriales = findViewById(R.id.btnTabMateriales);
+        btnTabActividades = findViewById(R.id.btnTabActividades);
+        btnTabConfig = findViewById(R.id.btnTabConfig);
+        btnAccionEspacioCurso = findViewById(R.id.btnAccionEspacioCurso);
+
+        recyclerEspacioCurso.setLayoutManager(new LinearLayoutManager(this));
 
         db = AppDatabase.getDatabase(this);
         sessionManager = new SessionManager(this);
@@ -109,14 +134,16 @@ public class MaterialesCursoActivity extends AppCompatActivity {
             return;
         }
 
-        verificarAccesoYCargarMateriales();
+        verificarAccesoYConfigurarUI();
 
-        btnPublicarMaterial.setOnClickListener(v -> mostrarDialogoPublicarMaterial());
-        btnEliminarCurso.setOnClickListener(v -> confirmarEliminarCurso());
-        btnInscribirEstudiante.setOnClickListener(v -> mostrarDialogoBuscarEstudianteParaInscribir());
+        btnTabMateriales.setOnClickListener(v -> cambiarPestaña(0));
+        btnTabActividades.setOnClickListener(v -> cambiarPestaña(1));
+        btnTabConfig.setOnClickListener(v -> cambiarPestaña(2));
+
+        btnAccionEspacioCurso.setOnClickListener(v -> manejarAccionPestaña());
     }
 
-    private void verificarAccesoYCargarMateriales() {
+    private void verificarAccesoYConfigurarUI() {
         Executors.newSingleThreadExecutor().execute(() -> {
             cursoActual = db.cursoDao().obtenerCursoPorId(cursoId);
 
@@ -126,33 +153,76 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
             if (!esAdmin && !esDocenteCreador && !esEstudianteMatriculado) {
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "Acceso denegado: Material exclusivo para matriculados o docente titular.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Acceso denegado: Curso exclusivo para matriculados o docente titular.", Toast.LENGTH_LONG).show();
                     finish();
                 });
                 return;
             }
 
-            final boolean esInstructor = esAdmin || esDocenteCreador;
+            esInstructor = esAdmin || esDocenteCreador;
 
             runOnUiThread(() -> {
-                if (esInstructor) {
-                    btnPublicarMaterial.setVisibility(View.VISIBLE);
-                    btnEliminarCurso.setVisibility(View.VISIBLE);
-                    btnInscribirEstudiante.setVisibility(View.VISIBLE);
-                } else {
-                    btnPublicarMaterial.setVisibility(View.GONE);
-                    btnEliminarCurso.setVisibility(View.GONE);
-                    btnInscribirEstudiante.setVisibility(View.GONE);
+                if (cursoActual != null) {
+                    tvCursoNombre.setText(cursoActual.nombre);
+                    tvCursoCodigoPeriodo.setText("Código: " + cursoActual.codigo + " • Periodo: " + cursoActual.periodo);
+                    tvCursoDescripcion.setText(cursoActual.descripcion);
                 }
+                if (esInstructor) {
+                    btnTabConfig.setVisibility(View.VISIBLE);
+                } else {
+                    btnTabConfig.setVisibility(View.GONE);
+                }
+                actualizarVistaPestaña();
             });
-
-            cargarMateriales(esInstructor);
         });
     }
 
-    private void cargarMateriales(boolean esInstructor) {
+    private void cambiarPestaña(int pestana) {
+        pestanaActual = pestana;
+        btnTabMateriales.setBackgroundColor(Color.parseColor(pestanaActual == 0 ? "#1976D2" : "#757575"));
+        btnTabActividades.setBackgroundColor(Color.parseColor(pestanaActual == 1 ? "#1976D2" : "#757575"));
+        btnTabConfig.setBackgroundColor(Color.parseColor(pestanaActual == 2 ? "#1976D2" : "#757575"));
+        actualizarVistaPestaña();
+    }
+
+    private void actualizarVistaPestaña() {
+        if (pestanaActual == 0) {
+            if (esInstructor) {
+                btnAccionEspacioCurso.setVisibility(View.VISIBLE);
+                btnAccionEspacioCurso.setText("+ Publicar Material");
+            } else {
+                btnAccionEspacioCurso.setVisibility(View.GONE);
+            }
+            cargarMateriales();
+        } else if (pestanaActual == 1) {
+            if (esInstructor) {
+                btnAccionEspacioCurso.setVisibility(View.VISIBLE);
+                btnAccionEspacioCurso.setText("+ Crear Actividad");
+            } else {
+                btnAccionEspacioCurso.setVisibility(View.VISIBLE);
+                btnAccionEspacioCurso.setText("Entregar Tarea / Trabajo");
+            }
+            cargarActividades();
+        } else if (pestanaActual == 2) {
+            btnAccionEspacioCurso.setVisibility(View.GONE);
+            cargarOpcionesGestion();
+        }
+    }
+
+    private void manejarAccionPestaña() {
+        if (pestanaActual == 0) {
+            if (esInstructor) mostrarDialogoPublicarMaterial();
+        } else if (pestanaActual == 1) {
+            if (esInstructor) {
+                mostrarDialogoCrearActividad();
+            } else {
+                mostrarDialogoEntregarTareaEstudiante();
+            }
+        }
+    }
+
+    private void cargarMateriales() {
         Executors.newSingleThreadExecutor().execute(() -> {
-            // Criterio HU-10: agrupado por unidad y ordenado por fecha
             List<ContenidoCurso> materiales = db.contenidoCursoDao().obtenerContenidosPorCurso(cursoId);
             Map<Integer, Long> accesosMap = new HashMap<>();
 
@@ -164,8 +234,535 @@ public class MaterialesCursoActivity extends AppCompatActivity {
             }
 
             runOnUiThread(() -> {
-                MaterialesAdapter adapter = new MaterialesAdapter(materiales, accesosMap, esInstructor, this::registrarAccesoYDescargar, this::confirmarEliminarMaterial);
-                recyclerMateriales.setAdapter(adapter);
+                MaterialesAdapter adapter = new MaterialesAdapter(materiales, accesosMap, esInstructor, material -> {
+                    if (esMaterialVideo(material)) {
+                        reproducirVideo(material);
+                    } else {
+                        registrarAccesoYDescargar(material);
+                    }
+                }, this::confirmarEliminarMaterial);
+                recyclerEspacioCurso.setAdapter(adapter);
+            });
+        });
+    }
+
+    private void cargarActividades() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            long ahora = System.currentTimeMillis();
+            List<ActividadCurso> actividades;
+            if (esInstructor) {
+                actividades = db.actividadCursoDao().obtenerActividadesPorCurso(cursoId);
+            } else {
+                List<ActividadCurso> todasEstudiante = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioId, ahora);
+                actividades = new ArrayList<>();
+                for (ActividadCurso act : todasEstudiante) {
+                    if (act.cursoId == cursoId) actividades.add(act);
+                }
+            }
+
+            final List<ActividadCurso> finalActividades = actividades;
+            runOnUiThread(() -> {
+                recyclerEspacioCurso.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+                    @NonNull
+                    @Override
+                    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                        View v = getLayoutInflater().inflate(android.R.layout.simple_list_item_2, parent, false);
+                        return new RecyclerView.ViewHolder(v) {};
+                    }
+
+                    @Override
+                    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+                        ActividadCurso act = finalActividades.get(position);
+                        TextView tv1 = holder.itemView.findViewById(android.R.id.text1);
+                        TextView tv2 = holder.itemView.findViewById(android.R.id.text2);
+                        String estadoVisibilidad = esInstructor ? (act.visible ? " [Visible]" : " [Oculta]") : "";
+                        tv1.setText(act.titulo + " (" + act.porcentaje + "%)" + estadoVisibilidad);
+                        tv2.setText("Abre: " + sdfFechaHora.format(new Date(act.fechaApertura)) + " | Cierra: " + sdfFechaHora.format(new Date(act.fechaCierre)));
+
+                        holder.itemView.setOnClickListener(v -> {
+                            if (esInstructor) {
+                                mostrarOpcionesActividad(act);
+                            } else {
+                                mostrarDetalleActividadEstudiante(act);
+                            }
+                        });
+                    }
+
+                    @Override
+                    public int getItemCount() {
+                        return finalActividades.size();
+                    }
+                });
+            });
+        });
+    }
+
+    private void cargarOpcionesGestion() {
+        List<String> opciones = new ArrayList<>();
+        opciones.add("✏️ Editar información del curso");
+        opciones.add("➕ Inscribir estudiante al curso");
+        opciones.add("🗑️ Eliminar este curso");
+
+        runOnUiThread(() -> {
+            recyclerEspacioCurso.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+                @NonNull
+                @Override
+                public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                    View v = getLayoutInflater().inflate(android.R.layout.simple_list_item_1, parent, false);
+                    return new RecyclerView.ViewHolder(v) {};
+                }
+
+                @Override
+                public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+                    TextView tv = holder.itemView.findViewById(android.R.id.text1);
+                    tv.setText(opciones.get(position));
+                    tv.setTextSize(16f);
+                    tv.setPadding(24, 24, 24, 24);
+
+                    holder.itemView.setOnClickListener(v -> {
+                        if (position == 0) mostrarDialogoEditarCurso();
+                        else if (position == 1) mostrarDialogoBuscarEstudianteParaInscribir();
+                        else if (position == 2) confirmarEliminarCurso();
+                    });
+                }
+
+                @Override
+                public int getItemCount() {
+                    return opciones.size();
+                }
+            });
+        });
+    }
+
+    private void mostrarDetalleActividadEstudiante(ActividadCurso act) {
+        long ahora = System.currentTimeMillis();
+        boolean vencida = ahora > act.fechaCierre;
+        String estadoPlazo = vencida ? (act.aceptaFueraDePlazo ? "\n⚠️ Plazo vencido (Acepta fuera de plazo)" : "\n❌ Plazo vencido (No acepta fuera de plazo)") : "\n✅ Abierta";
+
+        new AlertDialog.Builder(this)
+                .setTitle(act.titulo)
+                .setMessage("Instrucciones:\n" + act.instrucciones + "\n\nApertura: " + sdfFechaHora.format(new Date(act.fechaApertura)) + "\nCierre: " + sdfFechaHora.format(new Date(act.fechaCierre)) + "\n\nPeso en nota: " + act.porcentaje + "%" + estadoPlazo)
+                .setPositiveButton("Entregar Tarea", (d, w) -> {
+                    if (vencida && !act.aceptaFueraDePlazo) {
+                        Toast.makeText(this, "Plazo vencido: No acepta entregas fuera de plazo.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    realizarEntrega(act.titulo);
+                })
+                .setNegativeButton("Cerrar", null)
+                .show();
+    }
+
+    private void realizarEntrega(String tituloActividad) {
+        EditText input = new EditText(this);
+        input.setHint("Enlace o comentarios del trabajo (Ej: https://github.com/...)");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Entrega: " + tituloActividad)
+                .setView(input)
+                .setPositiveButton("Enviar Entrega", (dialog, which) -> {
+                    String comentario = input.getText().toString().trim();
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        Entrega entrega = new Entrega();
+                        entrega.cursoId = cursoId;
+                        entrega.estudianteId = usuarioId;
+                        entrega.tituloTarea = tituloActividad;
+                        entrega.descripcionEntrega = comentario.isEmpty() ? "Entrega realizada" : comentario;
+                        entrega.fechaEntrega = System.currentTimeMillis();
+                        entrega.estado = "Entregado";
+                        db.entregaDao().insertarEntrega(entrega);
+
+                        runOnUiThread(() -> Toast.makeText(this, "¡Trabajo entregado con éxito!", Toast.LENGTH_LONG).show());
+                    });
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    private void mostrarDialogoEntregarTareaEstudiante() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            long ahora = System.currentTimeMillis();
+            List<ActividadCurso> todas = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioId, ahora);
+            List<ActividadCurso> delCurso = new ArrayList<>();
+            for (ActividadCurso act : todas) {
+                if (act.cursoId == cursoId) delCurso.add(act);
+            }
+
+            runOnUiThread(() -> {
+                if (delCurso.isEmpty()) {
+                    Toast.makeText(this, "No hay actividades abiertas disponibles para entrega en este curso", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                String[] nombres = new String[delCurso.size()];
+                for (int i = 0; i < delCurso.size(); i++) {
+                    nombres[i] = delCurso.get(i).titulo + " (" + delCurso.get(i).porcentaje + "%)";
+                }
+                new AlertDialog.Builder(this)
+                        .setTitle("Seleccionar Actividad a Entregar")
+                        .setItems(nombres, (d, which) -> {
+                            ActividadCurso actElegida = delCurso.get(which);
+                            if (ahora > actElegida.fechaCierre && !actElegida.aceptaFueraDePlazo) {
+                                Toast.makeText(this, "Plazo vencido: No acepta entregas fuera de plazo.", Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                            realizarEntrega(actElegida.titulo);
+                        })
+                        .show();
+            });
+        });
+    }
+
+    private boolean esMaterialVideo(ContenidoCurso material) {
+        if (material.tipoMaterial != null && material.tipoMaterial.equalsIgnoreCase("VIDEO")) return true;
+        if (material.urlArchivo != null) {
+            String lower = material.urlArchivo.toLowerCase();
+            return lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".mkv") || lower.endsWith(".3gp");
+        }
+        return false;
+    }
+
+    private void reproducirVideo(ContenidoCurso material) {
+        if (material.urlArchivo == null || material.urlArchivo.isEmpty()) {
+            Toast.makeText(this, "No hay archivo de video disponible", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        VideoView videoView = new VideoView(this);
+        try {
+            videoView.setVideoURI(Uri.parse(material.urlArchivo));
+            MediaController mediaController = new MediaController(this);
+            mediaController.setAnchorView(videoView);
+            videoView.setMediaController(mediaController);
+
+            new AlertDialog.Builder(this)
+                    .setTitle("Reproductor de Video: " + material.titulo)
+                    .setView(videoView)
+                    .setPositiveButton("Cerrar", (d, w) -> videoView.stopPlayback())
+                    .setOnCancelListener(d -> videoView.stopPlayback())
+                    .show();
+
+            videoView.start();
+        } catch (Exception e) {
+            Toast.makeText(this, "Error al reproducir el video", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void mostrarDialogoEditarCurso() {
+        if (cursoActual == null) return;
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        int p = 32;
+        layout.setPadding(p, p, p, p);
+
+        final EditText etNombre = new EditText(this);
+        etNombre.setText(cursoActual.nombre);
+        layout.addView(etNombre);
+
+        final EditText etCodigo = new EditText(this);
+        etCodigo.setText(cursoActual.codigo);
+        layout.addView(etCodigo);
+
+        final EditText etDescripcion = new EditText(this);
+        etDescripcion.setText(cursoActual.descripcion);
+        layout.addView(etDescripcion);
+
+        final EditText etPeriodo = new EditText(this);
+        etPeriodo.setText(cursoActual.periodo);
+        layout.addView(etPeriodo);
+
+        final EditText etCupo = new EditText(this);
+        etCupo.setText(String.valueOf(cursoActual.cupoMaximo));
+        layout.addView(etCupo);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Administrar / Editar Curso")
+                .setView(layout)
+                .setPositiveButton("Guardar Cambios", (dialog, which) -> {
+                    cursoActual.nombre = etNombre.getText().toString().trim();
+                    cursoActual.codigo = etCodigo.getText().toString().trim();
+                    cursoActual.descripcion = etDescripcion.getText().toString().trim();
+                    cursoActual.periodo = etPeriodo.getText().toString().trim();
+                    try {
+                        cursoActual.cupoMaximo = Integer.parseInt(etCupo.getText().toString().trim());
+                    } catch (Exception ignored) {}
+
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        db.cursoDao().actualizarCurso(cursoActual);
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Curso actualizado correctamente", Toast.LENGTH_LONG).show();
+                            tvCursoNombre.setText(cursoActual.nombre);
+                            tvCursoCodigoPeriodo.setText("Código: " + cursoActual.codigo + " • Periodo: " + cursoActual.periodo);
+                            tvCursoDescripcion.setText(cursoActual.descripcion);
+                        });
+                    });
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    private void mostrarSelectorFechaHora(long initialMillis, OnFechaHoraSelectedListener listener) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(initialMillis > 0 ? initialMillis : System.currentTimeMillis());
+
+        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+            cal.set(Calendar.YEAR, year);
+            cal.set(Calendar.MONTH, month);
+            cal.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+
+            new TimePickerDialog(this, (view1, hourOfDay, minute) -> {
+                cal.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                cal.set(Calendar.MINUTE, minute);
+                listener.onSelected(cal.getTimeInMillis());
+            }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show();
+
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+    }
+
+    private interface OnFechaHoraSelectedListener {
+        void onSelected(long millis);
+    }
+
+    private void mostrarDialogoCrearActividad() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        int p = 32;
+        layout.setPadding(p, p, p, p);
+
+        final EditText etTitulo = new EditText(this);
+        etTitulo.setHint("Título de la Actividad");
+        layout.addView(etTitulo);
+
+        final EditText etInstrucciones = new EditText(this);
+        etInstrucciones.setHint("Instrucciones detalladas");
+        layout.addView(etInstrucciones);
+
+        final EditText etPorcentaje = new EditText(this);
+        etPorcentaje.setHint("Porcentaje de la nota (Ej: 20)");
+        etPorcentaje.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        layout.addView(etPorcentaje);
+
+        final long[] apertura = {System.currentTimeMillis()};
+        final long[] cierre = {System.currentTimeMillis() + (7L * 24 * 60 * 60 * 1000)};
+
+        Button btnApertura = new Button(this);
+        btnApertura.setText("Apertura: " + sdfFechaHora.format(new Date(apertura[0])));
+        btnApertura.setOnClickListener(v -> mostrarSelectorFechaHora(apertura[0], millis -> {
+            apertura[0] = millis;
+            btnApertura.setText("Apertura: " + sdfFechaHora.format(new Date(millis)));
+        }));
+        layout.addView(btnApertura);
+
+        Button btnCierre = new Button(this);
+        btnCierre.setText("Cierre: " + sdfFechaHora.format(new Date(cierre[0])));
+        btnCierre.setOnClickListener(v -> mostrarSelectorFechaHora(cierre[0], millis -> {
+            cierre[0] = millis;
+            btnCierre.setText("Cierre: " + sdfFechaHora.format(new Date(millis)));
+        }));
+        layout.addView(btnCierre);
+
+        final CheckBox cbFueraPlazo = new CheckBox(this);
+        cbFueraPlazo.setText("Acepta entregas fuera de plazo");
+        layout.addView(cbFueraPlazo);
+
+        final CheckBox cbVisible = new CheckBox(this);
+        cbVisible.setText("Visible para los estudiantes (Publicada)");
+        cbVisible.setChecked(true);
+        layout.addView(cbVisible);
+
+        Button btnAdjuntar = new Button(this);
+        btnAdjuntar.setText("Adjuntar Archivo / Recurso");
+        btnAdjuntar.setOnClickListener(v -> selectorArchivo.launch(new String[]{"*/*"}));
+        layout.addView(btnAdjuntar);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Crear Actividad o Trabajo")
+                .setView(layout)
+                .setPositiveButton("Publicar Actividad", (dialog, which) -> {
+                    String titulo = etTitulo.getText().toString().trim();
+                    String instrucciones = etInstrucciones.getText().toString().trim();
+                    String porcentajeStr = etPorcentaje.getText().toString().trim();
+
+                    if (titulo.isEmpty() || porcentajeStr.isEmpty()) {
+                        Toast.makeText(this, "Título y porcentaje son obligatorios", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    int porcentaje;
+                    try {
+                        porcentaje = Integer.parseInt(porcentajeStr);
+                    } catch (Exception e) {
+                        porcentaje = 0;
+                    }
+
+                    if (porcentaje <= 0 || porcentaje > 100) {
+                        Toast.makeText(this, "El porcentaje debe estar entre 1 y 100", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    if (cierre[0] <= apertura[0]) {
+                        Toast.makeText(this, "La fecha de cierre debe ser posterior a la de apertura", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    final int finalPorcentaje = porcentaje;
+                    final String archivoAdjunto = archivoUriSeleccionado;
+                    final boolean esVisible = cbVisible.isChecked();
+                    final long finalApertura = apertura[0];
+                    final long finalCierre = cierre[0];
+
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        Integer sumaActual = db.actividadCursoDao().obtenerSumaPorcentajes(cursoId);
+                        int total = sumaActual != null ? sumaActual : 0;
+                        if (total + finalPorcentaje > 100) {
+                            runOnUiThread(() -> Toast.makeText(this, "Error: La suma de porcentajes (" + (total + finalPorcentaje) + "%) supera el 100%.", Toast.LENGTH_LONG).show());
+                            return;
+                        }
+
+                        ActividadCurso actividad = new ActividadCurso();
+                        actividad.cursoId = cursoId;
+                        actividad.titulo = titulo;
+                        actividad.instrucciones = instrucciones;
+                        actividad.porcentaje = finalPorcentaje;
+                        actividad.aceptaFueraDePlazo = cbFueraPlazo.isChecked();
+                        actividad.archivoUrl = archivoAdjunto;
+                        actividad.fechaApertura = finalApertura;
+                        actividad.fechaCierre = finalCierre;
+                        actividad.visible = esVisible;
+
+                        db.actividadCursoDao().insertarActividad(actividad);
+
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Actividad creada con éxito", Toast.LENGTH_LONG).show();
+                            archivoUriSeleccionado = null;
+                            if (pestanaActual == 1) cargarActividades();
+                        });
+                    });
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    private void mostrarOpcionesActividad(ActividadCurso actividad) {
+        CharSequence[] opciones = {"Editar / Adjuntar Archivo / Fechas / Visibilidad", "Eliminar Actividad"};
+        new AlertDialog.Builder(this)
+                .setTitle("Acciones: " + actividad.titulo)
+                .setItems(opciones, (dialog, which) -> {
+                    if (which == 0) {
+                        mostrarDialogoEditarActividad(actividad);
+                    } else if (which == 1) {
+                        eliminarActividad(actividad);
+                    }
+                })
+                .show();
+    }
+
+    private void mostrarDialogoEditarActividad(ActividadCurso actividad) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        int p = 32;
+        layout.setPadding(p, p, p, p);
+
+        final EditText etTitulo = new EditText(this);
+        etTitulo.setText(actividad.titulo);
+        layout.addView(etTitulo);
+
+        final EditText etInstrucciones = new EditText(this);
+        etInstrucciones.setText(actividad.instrucciones);
+        layout.addView(etInstrucciones);
+
+        final EditText etPorcentaje = new EditText(this);
+        etPorcentaje.setText(String.valueOf(actividad.porcentaje));
+        etPorcentaje.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        layout.addView(etPorcentaje);
+
+        final long[] apertura = {actividad.fechaApertura};
+        final long[] cierre = {actividad.fechaCierre};
+
+        Button btnApertura = new Button(this);
+        btnApertura.setText("Apertura: " + sdfFechaHora.format(new Date(apertura[0])));
+        btnApertura.setOnClickListener(v -> mostrarSelectorFechaHora(apertura[0], millis -> {
+            apertura[0] = millis;
+            btnApertura.setText("Apertura: " + sdfFechaHora.format(new Date(millis)));
+        }));
+        layout.addView(btnApertura);
+
+        Button btnCierre = new Button(this);
+        btnCierre.setText("Cierre: " + sdfFechaHora.format(new Date(cierre[0])));
+        btnCierre.setOnClickListener(v -> mostrarSelectorFechaHora(cierre[0], millis -> {
+            cierre[0] = millis;
+            btnCierre.setText("Cierre: " + sdfFechaHora.format(new Date(millis)));
+        }));
+        layout.addView(btnCierre);
+
+        final CheckBox cbFueraPlazo = new CheckBox(this);
+        cbFueraPlazo.setText("Acepta entregas fuera de plazo");
+        cbFueraPlazo.setChecked(actividad.aceptaFueraDePlazo);
+        layout.addView(cbFueraPlazo);
+
+        final CheckBox cbVisible = new CheckBox(this);
+        cbVisible.setText("Visible para los estudiantes (Publicada)");
+        cbVisible.setChecked(actividad.visible);
+        layout.addView(cbVisible);
+
+        Button btnAdjuntar = new Button(this);
+        btnAdjuntar.setText(actividad.archivoUrl != null ? "Archivo adjunto (Cambiar)" : "Adjuntar Archivo / Recurso");
+        btnAdjuntar.setOnClickListener(v -> selectorArchivo.launch(new String[]{"*/*"}));
+        layout.addView(btnAdjuntar);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Editar Actividad y Fechas")
+                .setView(layout)
+                .setPositiveButton("Guardar", (dialog, which) -> {
+                    String titulo = etTitulo.getText().toString().trim();
+                    String instrucciones = etInstrucciones.getText().toString().trim();
+                    String porcentajeStr = etPorcentaje.getText().toString().trim();
+
+                    if (titulo.isEmpty() || porcentajeStr.isEmpty()) {
+                        Toast.makeText(this, "Título y porcentaje obligatorios", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    int porcentaje;
+                    try {
+                        porcentaje = Integer.parseInt(porcentajeStr);
+                    } catch (Exception e) {
+                        porcentaje = actividad.porcentaje;
+                    }
+
+                    if (cierre[0] <= apertura[0]) {
+                        Toast.makeText(this, "La fecha de cierre debe ser posterior a la de apertura", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    actividad.titulo = titulo;
+                    actividad.instrucciones = instrucciones;
+                    actividad.porcentaje = porcentaje;
+                    actividad.aceptaFueraDePlazo = cbFueraPlazo.isChecked();
+                    actividad.visible = cbVisible.isChecked();
+                    actividad.fechaApertura = apertura[0];
+                    actividad.fechaCierre = cierre[0];
+                    if (archivoUriSeleccionado != null) {
+                        actividad.archivoUrl = archivoUriSeleccionado;
+                    }
+
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        db.actividadCursoDao().actualizarActividad(actividad);
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Actividad actualizada correctamente", Toast.LENGTH_LONG).show();
+                            archivoUriSeleccionado = null;
+                            if (pestanaActual == 1) cargarActividades();
+                        });
+                    });
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    private void eliminarActividad(ActividadCurso actividad) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            db.actividadCursoDao().eliminarActividad(actividad.id);
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Actividad eliminada", Toast.LENGTH_SHORT).show();
+                if (pestanaActual == 1) cargarActividades();
             });
         });
     }
@@ -265,7 +862,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
         layout.addView(btnElegirArchivo);
 
         new AlertDialog.Builder(this)
-                .setTitle("HU-09: Publicar Material de Estudio")
+                .setTitle("Publicar Material de Estudio")
                 .setView(layout)
                 .setPositiveButton("Publicar", (dialog, which) -> {
                     String unidad = etUnidad.getText().toString().trim();
@@ -290,12 +887,10 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
                         db.contenidoCursoDao().insertarContenido(contenido);
 
-                        boolean esInstructor = "administrador".equals(rolUsuario) || ("docente".equals(rolUsuario) && cursoActual != null && cursoActual.docenteId == usuarioId);
-
                         runOnUiThread(() -> {
-                            Toast.makeText(this, "Material publicado. Notificación enviada a los estudiantes matriculados.", Toast.LENGTH_LONG).show();
+                            Toast.makeText(this, "Material publicado con éxito.", Toast.LENGTH_LONG).show();
                             archivoUriSeleccionado = null;
-                            cargarMateriales(esInstructor);
+                            if (pestanaActual == 0) cargarMateriales();
                         });
                     });
                 })
@@ -310,10 +905,9 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                 .setPositiveButton("Eliminar", (dialog, which) -> {
                     Executors.newSingleThreadExecutor().execute(() -> {
                         db.contenidoCursoDao().eliminarContenido(material.id);
-                        boolean esInstructor = "administrador".equals(rolUsuario) || ("docente".equals(rolUsuario) && cursoActual != null && cursoActual.docenteId == usuarioId);
                         runOnUiThread(() -> {
                             Toast.makeText(this, "Recurso eliminado correctamente", Toast.LENGTH_SHORT).show();
-                            cargarMateriales(esInstructor);
+                            if (pestanaActual == 0) cargarMateriales();
                         });
                     });
                 })
@@ -324,6 +918,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
     private String obtenerTipoDesdeNombre(String nombre) {
         if (nombre == null) return "DOC";
         String lower = nombre.toLowerCase();
+        if (lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".mkv") || lower.endsWith(".3gp")) return "VIDEO";
         if (lower.endsWith(".pdf")) return "PDF";
         if (lower.endsWith(".docx") || lower.endsWith(".doc")) return "DOCX";
         if (lower.endsWith(".pptx") || lower.endsWith(".ppt")) return "PPTX";
@@ -332,20 +927,29 @@ public class MaterialesCursoActivity extends AppCompatActivity {
     }
 
     private void confirmarEliminarCurso() {
-        new AlertDialog.Builder(this)
-                .setTitle("Eliminar Curso")
-                .setMessage("¿Estás seguro de que deseas eliminar este curso y todos sus materiales?")
-                .setPositiveButton("Eliminar", (dialog, which) -> {
-                    Executors.newSingleThreadExecutor().execute(() -> {
-                        db.cursoDao().eliminarCurso(cursoId);
-                        runOnUiThread(() -> {
-                            Toast.makeText(this, "Curso eliminado correctamente", Toast.LENGTH_SHORT).show();
-                            finish();
-                        });
-                    });
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
+        Executors.newSingleThreadExecutor().execute(() -> {
+            int inscritos = db.matriculaDao().obtenerCupoActual(cursoId);
+            if (inscritos > 0) {
+                runOnUiThread(() -> Toast.makeText(this, "Acción denegada: No se puede eliminar el curso porque tiene " + inscritos + " estudiante(s) matriculado(s).", Toast.LENGTH_LONG).show());
+                return;
+            }
+            runOnUiThread(() -> {
+                new AlertDialog.Builder(this)
+                        .setTitle("Eliminar Curso")
+                        .setMessage("¿Estás seguro de que deseas eliminar este curso y todos sus materiales?")
+                        .setPositiveButton("Eliminar", (dialog, which) -> {
+                            Executors.newSingleThreadExecutor().execute(() -> {
+                                db.cursoDao().eliminarCurso(cursoId);
+                                runOnUiThread(() -> {
+                                    Toast.makeText(this, "Curso eliminado correctamente", Toast.LENGTH_SHORT).show();
+                                    finish();
+                                });
+                            });
+                        })
+                        .setNegativeButton("Cancelar", null)
+                        .show();
+            });
+        });
     }
 
     private void registrarAccesoYDescargar(ContenidoCurso material) {
@@ -357,10 +961,8 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
             db.registroAccesoMaterialDao().registrarAcceso(registro);
 
-            boolean esInstructor = "administrador".equals(rolUsuario) || ("docente".equals(rolUsuario) && cursoActual != null && cursoActual.docenteId == usuarioId);
-
             runOnUiThread(() -> {
-                cargarMateriales(esInstructor);
+                if (pestanaActual == 0) cargarMateriales();
 
                 if (material.urlArchivo != null && !material.urlArchivo.isEmpty()) {
                     try {

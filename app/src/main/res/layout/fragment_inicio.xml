@@ -49,6 +49,14 @@
         android:visibility="gone"/>
 
     <Button
+        android:id="@+id/btnMisActividades"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Mis Actividades Pendientes"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone"/>
+
+    <Button
         android:id="@+id/btnDocentePublicar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

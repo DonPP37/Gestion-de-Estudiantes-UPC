@@ -21,8 +21,9 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
     ContenidoCurso.class,
     RegistroAccesoMaterial.class,
     Matricula.class,
-    Entrega.class
-}, version = 7) // Debe coincidir con la última migración (6 -> 7)
+    Entrega.class,
+    ActividadCurso.class
+}, version = 10) // Debe coincidir con la última migración (9 -> 10)
 
 public abstract class AppDatabase extends RoomDatabase {
     public abstract UsuarioDao usuarioDao();
@@ -32,6 +33,7 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract ContenidoCursoDao contenidoCursoDao();
     public abstract RegistroAccesoMaterialDao registroAccesoMaterialDao();
     public abstract EntregaDao entregaDao();
+    public abstract ActividadCursoDao actividadCursoDao();
 
     private static volatile AppDatabase INSTANCIA;
 
@@ -106,13 +108,36 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRACION_7_8 = new Migration(7, 8) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `actividades_curso` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `cursoId` INTEGER NOT NULL, `titulo` TEXT, `instrucciones` TEXT, `fechaLimite` INTEGER NOT NULL, `porcentaje` INTEGER NOT NULL, `aceptaFueraDePlazo` INTEGER NOT NULL)");
+        }
+    };
+
+    static final Migration MIGRACION_8_9 = new Migration(8, 9) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE actividades_curso ADD COLUMN archivoUrl TEXT");
+        }
+    };
+
+    static final Migration MIGRACION_9_10 = new Migration(9, 10) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE actividades_curso ADD COLUMN fechaApertura INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE actividades_curso ADD COLUMN fechaCierre INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE actividades_curso ADD COLUMN visible INTEGER NOT NULL DEFAULT 1");
+        }
+    };
+
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCIA == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCIA == null) {
                     INSTANCIA = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "intercambios_db_v2") // <-- Nombre cambiado
-                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7)
+                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10)
                             .fallbackToDestructiveMigration()
                             .addCallback(new RoomDatabase.Callback() {
                                 @Override

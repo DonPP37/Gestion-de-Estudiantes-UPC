@@ -1,56 +1,106 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
     android:background="#F5F5F5">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <!-- Tarjeta de Cabecera del Curso -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Recursos del Curso"
-        android:textSize="22sp"
-        android:textStyle="bold"
         android:layout_marginBottom="12dp"
-        android:textColor="#333333"/>
+        app:cardElevation="3dp"
+        app:cardCornerRadius="8dp">
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tvCursoNombre"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Nombre del Curso"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#1976D2"/>
+
+            <TextView
+                android:id="@+id/tvCursoCodigoPeriodo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Código • Periodo"
+                android:textSize="14sp"
+                android:textColor="#666666"
+                android:layout_marginTop="4dp"/>
+
+            <TextView
+                android:id="@+id/tvCursoDescripcion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Descripción del curso..."
+                android:textSize="13sp"
+                android:textColor="#444444"
+                android:layout_marginTop="6dp"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Pestañas del Espacio del Curso -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="10dp">
 
         <Button
-            android:id="@+id/btnPublicarMaterial"
+            android:id="@+id/btnTabMateriales"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="+ Publicar Material"
-            android:visibility="gone"
-            android:layout_marginEnd="4dp"/>
+            android:text="Materiales"
+            android:backgroundTint="#1976D2"
+            android:textSize="13sp"
+            android:layout_marginEnd="2dp"/>
 
         <Button
-            android:id="@+id/btnEliminarCurso"
+            android:id="@+id/btnTabActividades"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Eliminar Curso"
-            android:backgroundTint="#D32F2F"
-            android:visibility="gone"
-            android:layout_marginStart="4dp"/>
+            android:text="Actividades"
+            android:backgroundTint="#757575"
+            android:textSize="13sp"
+            android:layout_marginHorizontal="2dp"/>
+
+        <Button
+            android:id="@+id/btnTabConfig"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Gestión"
+            android:backgroundTint="#757575"
+            android:textSize="13sp"
+            android:layout_marginStart="2dp"
+            android:visibility="gone"/>
     </LinearLayout>
 
+    <!-- Botón de acción principal para la pestaña activa -->
     <Button
-        android:id="@+id/btnInscribirEstudiante"
+        android:id="@+id/btnAccionEspacioCurso"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="+ Inscribir Estudiante al Curso"
-        android:visibility="gone"
+        android:text="+ Publicar Material"
         android:layout_marginBottom="12dp"/>
 
+    <!-- Contenedor de listado -->
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerMateriales"
+        android:id="@+id/recyclerEspacioCurso"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
 </LinearLayout>

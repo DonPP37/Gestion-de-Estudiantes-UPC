@@ -18,6 +18,9 @@ public interface CursoDao {
     @Query("SELECT * FROM cursos WHERE id = :cursoId")
     Curso obtenerCursoPorId(int cursoId);
 
+    @androidx.room.Update
+    void actualizarCurso(Curso curso);
+
     @Query("SELECT * FROM cursos WHERE codigo LIKE '%' || :termino || '%' OR nombre LIKE '%' || :termino || '%'")
     List<Curso> buscarCursos(String termino);
 
