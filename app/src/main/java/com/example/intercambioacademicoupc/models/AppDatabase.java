@@ -23,7 +23,7 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
     Matricula.class,
     Entrega.class,
     ActividadCurso.class
-}, version = 10) // Debe coincidir con la última migración (9 -> 10)
+}, version = 11) // Migración 10 -> 11 para HU-13 y HU-14
 
 public abstract class AppDatabase extends RoomDatabase {
     public abstract UsuarioDao usuarioDao();
@@ -131,13 +131,46 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRACION_10_11 = new Migration(10, 11) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            if (!existeColumna(db, "entregas", "actividadId")) {
+                db.execSQL("ALTER TABLE entregas ADD COLUMN actividadId INTEGER NOT NULL DEFAULT 0");
+            }
+            if (!existeColumna(db, "entregas", "nombresArchivos")) {
+                db.execSQL("ALTER TABLE entregas ADD COLUMN nombresArchivos TEXT");
+            }
+            if (!existeColumna(db, "entregas", "tamanoTotalBytes")) {
+                db.execSQL("ALTER TABLE entregas ADD COLUMN tamanoTotalBytes INTEGER NOT NULL DEFAULT 0");
+            }
+            if (!existeColumna(db, "entregas", "comprobanteCodigo")) {
+                db.execSQL("ALTER TABLE entregas ADD COLUMN comprobanteCodigo TEXT");
+            }
+            if (!existeColumna(db, "entregas", "calificacion")) {
+                db.execSQL("ALTER TABLE entregas ADD COLUMN calificacion REAL");
+            }
+            if (!existeColumna(db, "entregas", "retroalimentacion")) {
+                db.execSQL("ALTER TABLE entregas ADD COLUMN retroalimentacion TEXT");
+            }
+            if (!existeColumna(db, "entregas", "fechaCalificacion")) {
+                db.execSQL("ALTER TABLE entregas ADD COLUMN fechaCalificacion INTEGER NOT NULL DEFAULT 0");
+            }
+            if (!existeColumna(db, "entregas", "autorModificacion")) {
+                db.execSQL("ALTER TABLE entregas ADD COLUMN autorModificacion TEXT");
+            }
+            if (!existeColumna(db, "entregas", "historialModificaciones")) {
+                db.execSQL("ALTER TABLE entregas ADD COLUMN historialModificaciones TEXT");
+            }
+        }
+    };
+
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCIA == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCIA == null) {
                     INSTANCIA = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "intercambios_db_v2") // <-- Nombre cambiado
-                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10)
+                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11)
                             .fallbackToDestructiveMigration()
                             .addCallback(new RoomDatabase.Callback() {
                                 @Override

@@ -69,6 +69,81 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
     private final SimpleDateFormat sdfFechaHora = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
 
+    // HU-13: Soporte para entrega de múltiples archivos (PDF, DOCX, ZIP) hasta 50 MB
+    private final List<String> entregaUrisSeleccionados = new ArrayList<>();
+    private final List<String> entregaNombresSeleccionados = new ArrayList<>();
+    private long entregaTamanoTotalBytes = 0;
+    private TextView tvArchivosEntregaSeleccionados = null;
+
+    private final ActivityResultLauncher<String[]> selectorArchivosEntrega =
+            registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(), uris -> {
+                if (uris == null || uris.isEmpty()) return;
+                long nuevoTamanoTotal = entregaTamanoTotalBytes;
+                List<String> nuevosUris = new ArrayList<>();
+                List<String> nuevosNombres = new ArrayList<>();
+
+                for (Uri uri : uris) {
+                    try {
+                        getContentResolver().takePersistableUriPermission(
+                                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    } catch (SecurityException ignored) {}
+
+                    String fileName = "archivo";
+                    long fileSize = 0;
+                    try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                        if (cursor != null && cursor.moveToFirst()) {
+                            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                            int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
+                            if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
+                                fileName = cursor.getString(nameIndex);
+                            }
+                            if (sizeIndex != -1 && !cursor.isNull(sizeIndex)) {
+                                fileSize = cursor.getLong(sizeIndex);
+                            }
+                        }
+                    } catch (Exception ignored) {}
+
+                    // HU-13: Validar extensiones PDF, DOCX, DOC, ZIP
+                    String nameLower = fileName.toLowerCase();
+                    if (!nameLower.endsWith(".pdf") && !nameLower.endsWith(".docx") && !nameLower.endsWith(".doc") && !nameLower.endsWith(".zip")) {
+                        Toast.makeText(this, "Formato no permitido (" + fileName + "). Solo se permiten archivos PDF, DOCX y ZIP.", Toast.LENGTH_LONG).show();
+                        continue;
+                    }
+
+                    if (nuevoTamanoTotal + fileSize > 50L * 1024 * 1024) {
+                        Toast.makeText(this, "El archivo " + fileName + " supera el límite de 50 MB en total.", Toast.LENGTH_LONG).show();
+                        continue;
+                    }
+
+                    nuevoTamanoTotal += fileSize;
+                    nuevosUris.add(uri.toString());
+                    nuevosNombres.add(fileName + " (" + String.format(Locale.getDefault(), "%.1f MB", (double) fileSize / (1024 * 1024)) + ")");
+                }
+
+                entregaUrisSeleccionados.addAll(nuevosUris);
+                entregaNombresSeleccionados.addAll(nuevosNombres);
+                entregaTamanoTotalBytes = nuevoTamanoTotal;
+
+                if (tvArchivosEntregaSeleccionados != null) {
+                    actualizarTextoArchivosEntrega();
+                }
+            });
+
+    private void actualizarTextoArchivosEntrega() {
+        if (entregaUrisSeleccionados.isEmpty()) {
+            tvArchivosEntregaSeleccionados.setText("No hay archivos seleccionados");
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append("📎 Archivos seleccionados (").append(entregaUrisSeleccionados.size()).append(") - Total: ")
+                    .append(String.format(Locale.getDefault(), "%.2f MB", (double) entregaTamanoTotalBytes / (1024 * 1024)))
+                    .append(" / 50 MB:\n");
+            for (String n : entregaNombresSeleccionados) {
+                sb.append("• ").append(n).append("\n");
+            }
+            tvArchivosEntregaSeleccionados.setText(sb.toString().trim());
+        }
+    }
+
     private final ActivityResultLauncher<String[]> selectorArchivo =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
                 if (uri == null) return;
@@ -339,43 +414,156 @@ public class MaterialesCursoActivity extends AppCompatActivity {
         boolean vencida = ahora > act.fechaCierre;
         String estadoPlazo = vencida ? (act.aceptaFueraDePlazo ? "\n⚠️ Plazo vencido (Acepta fuera de plazo)" : "\n❌ Plazo vencido (No acepta fuera de plazo)") : "\n✅ Abierta";
 
+        Executors.newSingleThreadExecutor().execute(() -> {
+            Entrega entregaExistente = db.entregaDao().obtenerEntregaPorActividadYEstudiante(act.id, usuarioId);
+            runOnUiThread(() -> {
+                String infoEntregaPrevia = "";
+                if (entregaExistente != null) {
+                    infoEntregaPrevia = "\n\n📌 TIENES UNA ENTREGA REGISTRADA:"
+                            + "\nEstado: " + entregaExistente.estado
+                            + "\nComprobante: " + (entregaExistente.comprobanteCodigo != null ? entregaExistente.comprobanteCodigo : "N/A")
+                            + "\nFecha: " + sdfFechaHora.format(new Date(entregaExistente.fechaEntrega))
+                            + (entregaExistente.calificacion != null ? "\nNota: " + entregaExistente.calificacion + " / 5.0" : "")
+                            + (entregaExistente.retroalimentacion != null ? "\nRetroalimentación: " + entregaExistente.retroalimentacion : "");
+                }
+
+                String btnTexto = entregaExistente != null ? "Reemplazar Entrega" : "Entregar Tarea";
+
+                AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                        .setTitle(act.titulo)
+                        .setMessage("Instrucciones:\n" + act.instrucciones + "\n\nApertura: " + sdfFechaHora.format(new Date(act.fechaApertura)) + "\nCierre: " + sdfFechaHora.format(new Date(act.fechaCierre)) + "\n\nPeso en nota: " + act.porcentaje + "%" + estadoPlazo + infoEntregaPrevia);
+
+                // HU-13: El sistema bloquea la entrega después de la fecha límite salvo que el docente habilite plazo extra
+                if (!vencida || act.aceptaFueraDePlazo) {
+                    builder.setPositiveButton(btnTexto, (d, w) -> abrirFormularioEntregaHU13(act, entregaExistente));
+                } else {
+                    builder.setPositiveButton("Plazo Cerrado", (d, w) ->
+                            Toast.makeText(this, "La fecha límite ha expirado y no se admiten entregas fuera de plazo.", Toast.LENGTH_LONG).show());
+                }
+
+                builder.setNegativeButton("Cerrar", null).show();
+            });
+        });
+    }
+
+    private void abrirFormularioEntregaHU13(ActividadCurso act, Entrega entregaExistente) {
+        long ahora = System.currentTimeMillis();
+        boolean vencida = ahora > act.fechaCierre;
+        if (vencida && !act.aceptaFueraDePlazo) {
+            Toast.makeText(this, "Plazo vencido: La actividad no admite entregas extemporáneas.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        entregaUrisSeleccionados.clear();
+        entregaNombresSeleccionados.clear();
+        entregaTamanoTotalBytes = 0;
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        int p = 32;
+        layout.setPadding(p, p, p, p);
+
+        TextView tvAyuda = new TextView(this);
+        tvAyuda.setText("Puedes enviar texto explicativo y/o adjuntar uno o varios archivos (PDF, DOCX, ZIP) de hasta 50 MB en total.");
+        tvAyuda.setTextSize(13f);
+        tvAyuda.setTextColor(Color.parseColor("#555555"));
+        layout.addView(tvAyuda);
+
+        final EditText etTexto = new EditText(this);
+        etTexto.setHint("Escribe tu respuesta, explicación o enlaces aquí...");
+        etTexto.setLines(3);
+        if (entregaExistente != null && entregaExistente.descripcionEntrega != null) {
+            etTexto.setText(entregaExistente.descripcionEntrega);
+        }
+        layout.addView(etTexto);
+
+        Button btnAdjuntar = new Button(this);
+        btnAdjuntar.setText("📎 Adjuntar Archivos (PDF, DOCX, ZIP)");
+        btnAdjuntar.setOnClickListener(v -> selectorArchivosEntrega.launch(new String[]{
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/zip",
+                "application/x-zip-compressed"
+        }));
+        layout.addView(btnAdjuntar);
+
+        tvArchivosEntregaSeleccionados = new TextView(this);
+        tvArchivosEntregaSeleccionados.setPadding(0, 12, 0, 12);
+        tvArchivosEntregaSeleccionados.setTextSize(12f);
+        if (entregaExistente != null && entregaExistente.nombresArchivos != null) {
+            tvArchivosEntregaSeleccionados.setText("Archivos en entrega previa: " + entregaExistente.nombresArchivos + "\n(Selecciona nuevos archivos para reemplazarlos)");
+        } else {
+            tvArchivosEntregaSeleccionados.setText("No hay archivos seleccionados");
+        }
+        layout.addView(tvArchivosEntregaSeleccionados);
+
+        String accionBoton = entregaExistente != null ? "Confirmar Reemplazo" : "Enviar Entrega";
+
         new AlertDialog.Builder(this)
-                .setTitle(act.titulo)
-                .setMessage("Instrucciones:\n" + act.instrucciones + "\n\nApertura: " + sdfFechaHora.format(new Date(act.fechaApertura)) + "\nCierre: " + sdfFechaHora.format(new Date(act.fechaCierre)) + "\n\nPeso en nota: " + act.porcentaje + "%" + estadoPlazo)
-                .setPositiveButton("Entregar Tarea", (d, w) -> {
-                    if (vencida && !act.aceptaFueraDePlazo) {
-                        Toast.makeText(this, "Plazo vencido: No acepta entregas fuera de plazo.", Toast.LENGTH_LONG).show();
+                .setTitle("Subir Trabajo: " + act.titulo)
+                .setView(layout)
+                .setPositiveButton(accionBoton, (dialog, which) -> {
+                    String texto = etTexto.getText().toString().trim();
+                    boolean tieneArchivos = !entregaUrisSeleccionados.isEmpty();
+                    boolean teniaArchivosPrevios = entregaExistente != null && entregaExistente.archivoUrl != null;
+
+                    if (texto.isEmpty() && !tieneArchivos && !teniaArchivosPrevios) {
+                        Toast.makeText(this, "Debes ingresar texto o adjuntar al menos un archivo para tu entrega.", Toast.LENGTH_LONG).show();
                         return;
                     }
-                    realizarEntrega(act.titulo);
+
+                    long fechaEnvio = System.currentTimeMillis();
+                    // Generar código de comprobante único formal
+                    String codigoComprobante = "COMP-" + act.id + "-" + usuarioId + "-" + (fechaEnvio % 1000000);
+
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        Entrega e = (entregaExistente != null) ? entregaExistente : new Entrega();
+                        e.cursoId = cursoId;
+                        e.actividadId = act.id;
+                        e.estudianteId = usuarioId;
+                        e.tituloTarea = act.titulo;
+                        e.descripcionEntrega = texto;
+                        e.fechaEntrega = fechaEnvio;
+                        e.estado = "entregada";
+                        e.comprobanteCodigo = codigoComprobante;
+
+                        if (tieneArchivos) {
+                            e.archivoUrl = String.join(";", entregaUrisSeleccionados);
+                            e.nombresArchivos = String.join(" | ", entregaNombresSeleccionados);
+                            e.tamanoTotalBytes = entregaTamanoTotalBytes;
+                        }
+
+                        if (entregaExistente != null) {
+                            db.entregaDao().actualizarEntrega(e);
+                        } else {
+                            db.entregaDao().insertarEntrega(e);
+                        }
+
+                        runOnUiThread(() -> {
+                            // HU-13: Generar comprobante formal con fecha, hora y estado "entregada"
+                            mostrarComprobanteEntrega(act.titulo, codigoComprobante, fechaEnvio);
+                            tvArchivosEntregaSeleccionados = null;
+                        });
+                    });
                 })
-                .setNegativeButton("Cerrar", null)
+                .setNegativeButton("Cancelar", (dialog, which) -> tvArchivosEntregaSeleccionados = null)
                 .show();
     }
 
-    private void realizarEntrega(String tituloActividad) {
-        EditText input = new EditText(this);
-        input.setHint("Enlace o comentarios del trabajo (Ej: https://github.com/...)");
+    private void mostrarComprobanteEntrega(String tituloActividad, String codigoComprobante, long fechaMillis) {
+        String fechaHoraStr = sdfFechaHora.format(new Date(fechaMillis));
+        String mensaje = "✅ ¡ENTREGA REGISTRADA CON ÉXITO!\n\n"
+                + "Actividad: " + tituloActividad + "\n"
+                + "Código de Comprobante: " + codigoComprobante + "\n"
+                + "Fecha y Hora: " + fechaHoraStr + "\n"
+                + "Estado: entregada\n\n"
+                + "Este comprobante certifica la formalidad de tu entrega antes de la fecha límite.";
 
         new AlertDialog.Builder(this)
-                .setTitle("Entrega: " + tituloActividad)
-                .setView(input)
-                .setPositiveButton("Enviar Entrega", (dialog, which) -> {
-                    String comentario = input.getText().toString().trim();
-                    Executors.newSingleThreadExecutor().execute(() -> {
-                        Entrega entrega = new Entrega();
-                        entrega.cursoId = cursoId;
-                        entrega.estudianteId = usuarioId;
-                        entrega.tituloTarea = tituloActividad;
-                        entrega.descripcionEntrega = comentario.isEmpty() ? "Entrega realizada" : comentario;
-                        entrega.fechaEntrega = System.currentTimeMillis();
-                        entrega.estado = "Entregado";
-                        db.entregaDao().insertarEntrega(entrega);
-
-                        runOnUiThread(() -> Toast.makeText(this, "¡Trabajo entregado con éxito!", Toast.LENGTH_LONG).show());
-                    });
-                })
-                .setNegativeButton("Cancelar", null)
+                .setTitle("Comprobante Formal de Entrega")
+                .setMessage(mensaje)
+                .setPositiveButton("Aceptar", null)
                 .show();
     }
 
@@ -401,11 +589,10 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                         .setTitle("Seleccionar Actividad a Entregar")
                         .setItems(nombres, (d, which) -> {
                             ActividadCurso actElegida = delCurso.get(which);
-                            if (ahora > actElegida.fechaCierre && !actElegida.aceptaFueraDePlazo) {
-                                Toast.makeText(this, "Plazo vencido: No acepta entregas fuera de plazo.", Toast.LENGTH_LONG).show();
-                                return;
-                            }
-                            realizarEntrega(actElegida.titulo);
+                            Executors.newSingleThreadExecutor().execute(() -> {
+                                Entrega prev = db.entregaDao().obtenerEntregaPorActividadYEstudiante(actElegida.id, usuarioId);
+                                runOnUiThread(() -> abrirFormularioEntregaHU13(actElegida, prev));
+                            });
                         })
                         .show();
             });
@@ -642,13 +829,22 @@ public class MaterialesCursoActivity extends AppCompatActivity {
     }
 
     private void mostrarOpcionesActividad(ActividadCurso actividad) {
-        CharSequence[] opciones = {"Editar / Adjuntar Archivo / Fechas / Visibilidad", "Eliminar Actividad"};
+        CharSequence[] opciones = {
+                "📋 Ver y calificar entregas recibidas (HU-14)",
+                "✏️ Editar / Adjuntar Archivo / Fechas / Visibilidad",
+                "🗑️ Eliminar Actividad"
+        };
         new AlertDialog.Builder(this)
                 .setTitle("Acciones: " + actividad.titulo)
                 .setItems(opciones, (dialog, which) -> {
                     if (which == 0) {
-                        mostrarDialogoEditarActividad(actividad);
+                        Intent intent = new Intent(this, CalificarEntregasActivity.class);
+                        intent.putExtra("ACTIVIDAD_ID", actividad.id);
+                        intent.putExtra("CURSO_ID", cursoId);
+                        startActivity(intent);
                     } else if (which == 1) {
+                        mostrarDialogoEditarActividad(actividad);
+                    } else if (which == 2) {
                         eliminarActividad(actividad);
                     }
                 })

@@ -28,6 +28,8 @@
         <activity android:name=".CrearCursoActivity" android:exported="false" />
         <!-- Materiales del curso: no estaba declarada y la app se cerraba al abrirla -->
         <activity android:name=".MaterialesCursoActivity" android:exported="false" />
+        <!-- HU-14: Calificar entregas y seguimiento -->
+        <activity android:name=".CalificarEntregasActivity" android:exported="false" />
 
     </application>
 

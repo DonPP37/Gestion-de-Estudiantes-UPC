@@ -196,11 +196,30 @@ public class InicioFragment extends Fragment {
                         .setTitle("Mis Actividades Pendientes")
                         .setItems(items, (d, which) -> {
                             ActividadCurso seleccionada = actividades.get(which);
-                            new AlertDialog.Builder(requireContext())
-                                    .setTitle(seleccionada.titulo)
-                                    .setMessage("Instrucciones: " + seleccionada.instrucciones + "\nPeso en nota: " + seleccionada.porcentaje + "%\nAcepta fuera de plazo: " + (seleccionada.aceptaFueraDePlazo ? "Sí" : "No") + "\nFecha de cierre: " + DateFormat.format("dd/MM/yyyy HH:mm", seleccionada.fechaCierre))
-                                    .setPositiveButton("Cerrar", null)
-                                    .show();
+                            Executors.newSingleThreadExecutor().execute(() -> {
+                                Entrega entregaPrevia = db.entregaDao().obtenerEntregaPorActividadYEstudiante(seleccionada.id, usuarioActual.id);
+                                requireActivity().runOnUiThread(() -> {
+                                    String estadoEntrega = "Pendiente";
+                                    String infoExtra = "";
+                                    if (entregaPrevia != null) {
+                                        estadoEntrega = entregaPrevia.estado != null ? entregaPrevia.estado : "entregada";
+                                        infoExtra = "\nComprobante: " + (entregaPrevia.comprobanteCodigo != null ? entregaPrevia.comprobanteCodigo : "N/A")
+                                                + "\nFecha entrega: " + DateFormat.format("dd/MM/yyyy HH:mm", entregaPrevia.fechaEntrega)
+                                                + (entregaPrevia.calificacion != null ? "\nNota: " + entregaPrevia.calificacion + " / 5.0" : "")
+                                                + (entregaPrevia.retroalimentacion != null ? "\nRetroalimentación: " + entregaPrevia.retroalimentacion : "");
+                                    }
+
+                                    new AlertDialog.Builder(requireContext())
+                                            .setTitle(seleccionada.titulo)
+                                            .setMessage("Instrucciones: " + seleccionada.instrucciones
+                                                    + "\nPeso en nota: " + seleccionada.porcentaje + "%"
+                                                    + "\nEstado: " + estadoEntrega
+                                                    + infoExtra
+                                                    + "\nFecha límite: " + DateFormat.format("dd/MM/yyyy HH:mm", seleccionada.fechaCierre))
+                                            .setPositiveButton("Cerrar", null)
+                                            .show();
+                                });
+                            });
                         })
                         .setPositiveButton("Cerrar", null)
                         .show();
@@ -328,30 +347,64 @@ public class InicioFragment extends Fragment {
     }
 
     private void realizarEntrega(int actividadId, int cursoId, String tituloActividad) {
-        EditText inputTitulo = new EditText(requireContext());
-        inputTitulo.setHint("Comentarios o Enlace del trabajo (Ej: https://github.com/...)");
+        Executors.newSingleThreadExecutor().execute(() -> {
+            Entrega entregaExistente = db.entregaDao().obtenerEntregaPorActividadYEstudiante(actividadId, usuarioActual.id);
+            requireActivity().runOnUiThread(() -> {
+                EditText inputTexto = new EditText(requireContext());
+                inputTexto.setHint("Texto del trabajo o enlace...");
+                if (entregaExistente != null && entregaExistente.descripcionEntrega != null) {
+                    inputTexto.setText(entregaExistente.descripcionEntrega);
+                }
 
-        new AlertDialog.Builder(requireContext())
-                .setTitle("Enviar Entrega: " + tituloActividad)
-                .setView(inputTitulo)
-                .setPositiveButton("Enviar Entrega", (dialog, which) -> {
-                    String desc = inputTitulo.getText().toString().trim();
-                    Executors.newSingleThreadExecutor().execute(() -> {
-                        Entrega entrega = new Entrega();
-                        entrega.cursoId = cursoId;
-                        entrega.estudianteId = usuarioActual.id;
-                        entrega.tituloTarea = tituloActividad;
-                        entrega.descripcionEntrega = desc.isEmpty() ? "Entrega de actividad" : desc;
-                        entrega.fechaEntrega = System.currentTimeMillis();
-                        entrega.estado = "Entregado";
-                        db.entregaDao().insertarEntrega(entrega);
+                String accion = (entregaExistente != null) ? "Reemplazar Entrega" : "Enviar Entrega";
 
-                        requireActivity().runOnUiThread(() ->
-                                Toast.makeText(requireContext(), "¡Trabajo entregado con éxito!", Toast.LENGTH_LONG).show()
-                        );
-                    });
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Subir Trabajo: " + tituloActividad)
+                        .setView(inputTexto)
+                        .setPositiveButton(accion, (dialog, which) -> {
+                            String desc = inputTexto.getText().toString().trim();
+                            if (desc.isEmpty() && (entregaExistente == null || entregaExistente.archivoUrl == null)) {
+                                Toast.makeText(requireContext(), "Ingresa el texto o detalle de tu entrega", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+
+                            long fechaEnvio = System.currentTimeMillis();
+                            String codigoComprobante = "COMP-" + actividadId + "-" + usuarioActual.id + "-" + (fechaEnvio % 1000000);
+
+                            Executors.newSingleThreadExecutor().execute(() -> {
+                                Entrega entrega = (entregaExistente != null) ? entregaExistente : new Entrega();
+                                entrega.cursoId = cursoId;
+                                entrega.actividadId = actividadId;
+                                entrega.estudianteId = usuarioActual.id;
+                                entrega.tituloTarea = tituloActividad;
+                                entrega.descripcionEntrega = desc;
+                                entrega.fechaEntrega = fechaEnvio;
+                                entrega.estado = "entregada";
+                                entrega.comprobanteCodigo = codigoComprobante;
+
+                                if (entregaExistente != null) {
+                                    db.entregaDao().actualizarEntrega(entrega);
+                                } else {
+                                    db.entregaDao().insertarEntrega(entrega);
+                                }
+
+                                requireActivity().runOnUiThread(() -> {
+                                    String fechaStr = DateFormat.format("dd/MM/yyyy HH:mm:ss", fechaEnvio).toString();
+                                    new AlertDialog.Builder(requireContext())
+                                            .setTitle("Comprobante Formal de Entrega (HU-13)")
+                                            .setMessage("✅ ¡Entrega enviada con éxito!\n\n"
+                                                    + "Actividad: " + tituloActividad + "\n"
+                                                    + "Código Comprobante: " + codigoComprobante + "\n"
+                                                    + "Fecha y Hora: " + fechaStr + "\n"
+                                                    + "Estado: entregada")
+                                            .setPositiveButton("Aceptar", null)
+                                            .show();
+                                });
+                            });
+                        })
+                        .setNegativeButton("Cancelar", null)
+                        .show();
+            });
+        });
     }
 }
