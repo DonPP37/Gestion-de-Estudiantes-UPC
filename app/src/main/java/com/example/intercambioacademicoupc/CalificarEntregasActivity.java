@@ -1,6 +1,7 @@
 package com.example.intercambioacademicoupc;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
@@ -80,7 +81,6 @@ public class CalificarEntregasActivity extends AppCompatActivity {
 
             List<Entrega> entregas = db.entregaDao().obtenerEntregasPorActividad(actividadId);
 
-            // Obtener estudiantes asociados
             Map<Integer, Usuario> mapaEstudiantes = new HashMap<>();
             int calificadas = 0;
             for (Entrega e : entregas) {
@@ -146,7 +146,6 @@ public class CalificarEntregasActivity extends AppCompatActivity {
                         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                         startActivity(intent);
                     } catch (Exception e) {
-                        // Fallback con Intent genérico
                         try {
                             Intent genericIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(selectedUri));
                             startActivity(genericIntent);
@@ -188,6 +187,21 @@ public class CalificarEntregasActivity extends AppCompatActivity {
         }
         layout.addView(etFeedback);
 
+        // HU-16: Si hay una solicitud de revisión de calificación
+        final EditText etMotivoRevDocente = new EditText(this);
+        final boolean tieneSolicitudRevision = entrega.solicitudRevision || (entrega.motivoRevision != null && !entrega.motivoRevision.isEmpty());
+        if (tieneSolicitudRevision) {
+            TextView tvRev = new TextView(this);
+            tvRev.setText("\n⚠️ SOLICITUD DE REVISIÓN (HU-16):\nMotivo del estudiante: " + entrega.motivoRevision + "\nEstado: " + (entrega.estadoRevision != null ? entrega.estadoRevision : "en revisión"));
+            tvRev.setTextColor(Color.parseColor("#D32F2F"));
+            tvRev.setTextSize(13f);
+            layout.addView(tvRev);
+
+            etMotivoRevDocente.setHint("Observación OBLIGATORIA para la revisión...");
+            etMotivoRevDocente.setLines(2);
+            layout.addView(etMotivoRevDocente);
+        }
+
         String tituloModal = (entrega.calificacion != null) ? "Modificar Calificación" : "Registrar Calificación";
 
         new AlertDialog.Builder(this)
@@ -210,17 +224,25 @@ public class CalificarEntregasActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // Validación escala 0.0 a 5.0
                     if (nota < 0.0 || nota > 5.0) {
                         Toast.makeText(this, "La nota debe estar dentro de la escala [0.0 - 5.0]", Toast.LENGTH_LONG).show();
                         return;
+                    }
+
+                    if (tieneSolicitudRevision) {
+                        String obsRev = etMotivoRevDocente.getText().toString().trim();
+                        if (obsRev.isEmpty()) {
+                            Toast.makeText(this, "HU-16: Debe ingresar una observación obligatoria para responder la revisión", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        entrega.estadoRevision = "aceptada";
+                        feedback = feedback + "\n[Respuesta a Revisión]: " + obsRev;
                     }
 
                     long ahora = System.currentTimeMillis();
                     String nombreDocente = usuarioActual != null ? (usuarioActual.nombre + " " + usuarioActual.apellido) : "Docente";
                     String fechaHoraStr = DateFormat.format("dd/MM/yyyy HH:mm", ahora).toString();
 
-                    // HU-14: Si ya tenía calificación, auditar el cambio con autor y fecha
                     if (entrega.calificacion != null) {
                         String lineaAuditoria = "Modificado el " + fechaHoraStr + " por " + nombreDocente + ": Nota anterior " + entrega.calificacion + " -> " + nota;
                         if (entrega.historialModificaciones == null || entrega.historialModificaciones.isEmpty()) {
@@ -236,12 +258,11 @@ public class CalificarEntregasActivity extends AppCompatActivity {
                     entrega.retroalimentacion = feedback;
                     entrega.fechaCalificacion = ahora;
                     entrega.autorModificacion = nombreDocente;
-                    entrega.estado = "calificada"; // HU-14: Al guardar el estado cambia a calificada
+                    entrega.estado = "calificada";
 
                     Executors.newSingleThreadExecutor().execute(() -> {
                         db.entregaDao().actualizarEntrega(entrega);
                         runOnUiThread(() -> {
-                            // HU-14: Notificación al estudiante generada
                             Toast.makeText(this, "¡Calificación guardada y estudiante notificado exitosamente!", Toast.LENGTH_LONG).show();
                             cargarDatosYEntregas();
                         });
