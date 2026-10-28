@@ -1,81 +1,109 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:background="#F5F5F5">
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/tvBienvenidaInicio"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Panel de Inicio"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:textColor="#333333"
-        android:layout_marginBottom="8dp"/>
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="#F5F5F5">
 
-    <TextView
-        android:id="@+id/tvRolInfo"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Consulta tus cursos, materiales y entregas académicas."
-        android:textSize="14sp"
-        android:textColor="#666666"
-        android:layout_marginBottom="16dp"/>
+        <TextView
+            android:id="@+id/tvBienvenidaInicio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Panel de Inicio"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:layout_marginBottom="8dp"/>
 
-    <Button
-        android:id="@+id/btnAccionRol"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Ver Materiales de mis Cursos"
-        android:layout_marginBottom="12dp"/>
+        <TextView
+            android:id="@+id/tvRolInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Consulta tus cursos y el calendario interactivo de actividades."
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:layout_marginBottom="16dp"/>
 
-    <Button
-        android:id="@+id/btnBuscarInscribirCurso"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Buscar e Inscribirme a un Curso"
-        android:layout_marginBottom="12dp"
-        android:visibility="gone"/>
+        <!-- Calendario Interactivo (HU-15 / HU-16) -->
+        <CalendarView
+            android:id="@+id/calendarView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#FFFFFF"
+            android:layout_marginBottom="12dp"
+            android:elevation="2dp"/>
 
-    <Button
-        android:id="@+id/btnEntregarTarea"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Entregar Tarea / Trabajo"
-        android:layout_marginBottom="12dp"
-        android:visibility="gone"/>
+        <TextView
+            android:id="@+id/tvTituloActividadesFecha"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Actividades para la fecha seleccionada:"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="#1976D2"
+            android:layout_marginBottom="8dp"/>
 
-    <Button
-        android:id="@+id/btnMisActividades"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Mis Actividades Pendientes"
-        android:layout_marginBottom="12dp"
-        android:visibility="gone"/>
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerInicioCursos"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:background="#FFFFFF"
+            android:padding="8dp"
+            android:layout_marginBottom="12dp"/>
 
-    <Button
-        android:id="@+id/btnDocentePublicar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Gestionar / Publicar Materiales (Docente)"
-        android:layout_marginBottom="12dp"
-        android:visibility="gone"/>
+        <!-- Botones de acción general -->
+        <Button
+            android:id="@+id/btnAccionRol"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Acción"
+            android:layout_marginBottom="12dp"/>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Actividad Reciente / Avisos"
-        android:textStyle="bold"
-        android:textSize="16sp"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="8dp"/>
+        <Button
+            android:id="@+id/btnBuscarInscribirCurso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Buscar e Inscribirme a un Curso"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"/>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerInicioCursos"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        <Button
+            android:id="@+id/btnEntregarTarea"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Entregar Tarea / Trabajo"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"/>
 
-</LinearLayout>
+        <Button
+            android:id="@+id/btnMisActividades"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Mis Actividades Pendientes"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/btnMisCalificaciones"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Mis Calificaciones y Promedio"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/btnDocentePublicar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Gestionar / Publicar Materiales"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"/>
+
+    </LinearLayout>
+</ScrollView>

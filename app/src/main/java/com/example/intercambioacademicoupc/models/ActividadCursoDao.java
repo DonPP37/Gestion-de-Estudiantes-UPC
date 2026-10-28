@@ -17,6 +17,9 @@ public interface ActividadCursoDao {
     @Query("DELETE FROM actividades_curso WHERE id = :actividadId")
     void eliminarActividad(int actividadId);
 
+    @Query("SELECT * FROM actividades_curso WHERE id = :id LIMIT 1")
+    ActividadCurso obtenerPorId(int id);
+
     @Query("SELECT * FROM actividades_curso WHERE cursoId = :cursoId ORDER BY fechaCierre ASC")
     List<ActividadCurso> obtenerActividadesPorCurso(int cursoId);
 
@@ -25,4 +28,10 @@ public interface ActividadCursoDao {
 
     @Query("SELECT a.* FROM actividades_curso a INNER JOIN matriculas m ON a.cursoId = m.cursoId WHERE m.estudianteId = :estudianteId AND a.visible = 1 AND a.fechaApertura <= :ahora AND a.fechaCierre >= :ahora ORDER BY a.fechaCierre ASC")
     List<ActividadCurso> obtenerActividadesParaEstudiante(int estudianteId, long ahora);
+
+    @Query("SELECT a.* FROM actividades_curso a INNER JOIN matriculas m ON a.cursoId = m.cursoId WHERE m.estudianteId = :estudianteId")
+    List<ActividadCurso> obtenerTodasActividadesParaEstudiante(int estudianteId);
+
+    @Query("SELECT a.* FROM actividades_curso a INNER JOIN cursos c ON a.cursoId = c.id WHERE c.docenteId = :docenteId")
+    List<ActividadCurso> obtenerTodasActividadesParaDocente(int docenteId);
 }

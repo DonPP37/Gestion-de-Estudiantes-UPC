@@ -25,5 +25,10 @@ public class Entrega {
     public String retroalimentacion; // Comentarios del docente
     public long fechaCalificacion; // Fecha en que se calificó o modificó
     public String autorModificacion; // Docente que calificó/modificó
-    public String historialModificaciones; // Registro de cambios de nota: "Fecha | Autor | Nota previa -> Nueva nota"
+    public String historialModificaciones; // Registro de cambios de nota
+
+    // Solicitud de revisión de calificación (HU-16)
+    public boolean solicitudRevision = false;
+    public String motivoRevision; // Mínimo 100 caracteres
+    public String estadoRevision; // "en revisión", "aceptada", "rechazada"
 }

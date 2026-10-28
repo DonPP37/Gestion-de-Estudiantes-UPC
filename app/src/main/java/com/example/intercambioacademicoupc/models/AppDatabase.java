@@ -23,7 +23,7 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
     Matricula.class,
     Entrega.class,
     ActividadCurso.class
-}, version = 11) // Migración 10 -> 11 para HU-13 y HU-14
+}, version = 12) // Migración 11 -> 12 para HU-16 (revisión de notas)
 
 public abstract class AppDatabase extends RoomDatabase {
     public abstract UsuarioDao usuarioDao();
@@ -164,13 +164,22 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRACION_11_12 = new Migration(11, 12) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE entregas ADD COLUMN solicitudRevision INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE entregas ADD COLUMN motivoRevision TEXT");
+            db.execSQL("ALTER TABLE entregas ADD COLUMN estadoRevision TEXT");
+        }
+    };
+
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCIA == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCIA == null) {
                     INSTANCIA = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "intercambios_db_v2") // <-- Nombre cambiado
-                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11)
+                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12)
                             .fallbackToDestructiveMigration()
                             .addCallback(new RoomDatabase.Callback() {
                                 @Override

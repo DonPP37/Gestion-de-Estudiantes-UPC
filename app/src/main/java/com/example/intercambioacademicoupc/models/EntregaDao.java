@@ -27,4 +27,7 @@ public interface EntregaDao {
 
     @Query("SELECT * FROM entregas WHERE actividadId = :actividadId ORDER BY fechaEntrega DESC")
     List<Entrega> obtenerEntregasPorActividad(int actividadId);
+
+    @Query("SELECT * FROM entregas WHERE estudianteId = :estudianteId")
+    List<Entrega> obtenerTodasEntregasEstudiante(int estudianteId);
 }

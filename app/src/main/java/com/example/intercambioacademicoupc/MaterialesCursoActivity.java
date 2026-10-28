@@ -433,6 +433,17 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                         .setTitle(act.titulo)
                         .setMessage("Instrucciones:\n" + act.instrucciones + "\n\nApertura: " + sdfFechaHora.format(new Date(act.fechaApertura)) + "\nCierre: " + sdfFechaHora.format(new Date(act.fechaCierre)) + "\n\nPeso en nota: " + act.porcentaje + "%" + estadoPlazo + infoEntregaPrevia);
 
+                if (act.archivoUrl != null && !act.archivoUrl.isEmpty()) {
+                    builder.setNeutralButton("Ver Archivo Adjunto", (d, w) -> {
+                        try {
+                            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(act.archivoUrl));
+                            startActivity(intent);
+                        } catch (Exception e) {
+                            Toast.makeText(this, "No se pudo abrir el archivo adjunto", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+
                 // HU-13: El sistema bloquea la entrega después de la fecha límite salvo que el docente habilite plazo extra
                 if (!vencida || act.aceptaFueraDePlazo) {
                     builder.setPositiveButton(btnTexto, (d, w) -> abrirFormularioEntregaHU13(act, entregaExistente));

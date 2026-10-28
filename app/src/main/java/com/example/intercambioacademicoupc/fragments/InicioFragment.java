@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CalendarView;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -20,7 +21,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.intercambioacademicoupc.AdminUsuariosActivity;
 import com.example.intercambioacademicoupc.CrearCursoActivity;
-import com.example.intercambioacademicoupc.MaterialesCursoActivity;
 import com.example.intercambioacademicoupc.R;
 import com.example.intercambioacademicoupc.models.ActividadCurso;
 import com.example.intercambioacademicoupc.models.AppDatabase;
@@ -31,13 +31,17 @@ import com.example.intercambioacademicoupc.models.Usuario;
 import com.example.intercambioacademicoupc.session.SessionManager;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 
 public class InicioFragment extends Fragment {
 
-    private TextView tvBienvenidaInicio, tvRolInfo;
-    private Button btnAccionRol, btnBuscarInscribirCurso, btnEntregarTarea, btnMisActividades, btnDocentePublicar;
+    private TextView tvBienvenidaInicio, tvRolInfo, tvTituloActividadesFecha;
+    private CalendarView calendarView;
+    private Button btnAccionRol, btnBuscarInscribirCurso, btnEntregarTarea, btnMisActividades, btnMisCalificaciones, btnDocentePublicar;
     private RecyclerView recyclerInicioCursos;
     private AppDatabase db;
     private SessionManager sessionManager;
@@ -50,10 +54,13 @@ public class InicioFragment extends Fragment {
 
         tvBienvenidaInicio = view.findViewById(R.id.tvBienvenidaInicio);
         tvRolInfo = view.findViewById(R.id.tvRolInfo);
+        tvTituloActividadesFecha = view.findViewById(R.id.tvTituloActividadesFecha);
+        calendarView = view.findViewById(R.id.calendarView);
         btnAccionRol = view.findViewById(R.id.btnAccionRol);
         btnBuscarInscribirCurso = view.findViewById(R.id.btnBuscarInscribirCurso);
         btnEntregarTarea = view.findViewById(R.id.btnEntregarTarea);
         btnMisActividades = view.findViewById(R.id.btnMisActividades);
+        btnMisCalificaciones = view.findViewById(R.id.btnMisCalificaciones);
         btnDocentePublicar = view.findViewById(R.id.btnDocentePublicar);
         recyclerInicioCursos = view.findViewById(R.id.recyclerInicioCursos);
 
@@ -62,9 +69,25 @@ public class InicioFragment extends Fragment {
         db = AppDatabase.getDatabase(requireContext());
         sessionManager = new SessionManager(requireContext());
 
+        Calendar cal = Calendar.getInstance();
+        cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
+
+        calendarView.setOnDateChangeListener((view1, year, month, dayOfMonth) -> {
+            cargarActividadesPorFecha(year, month, dayOfMonth);
+        });
+
         cargarDatosUsuario();
 
         return view;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (usuarioActual != null) {
+            Calendar cal = Calendar.getInstance();
+            cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
+        }
     }
 
     private void cargarDatosUsuario() {
@@ -74,7 +97,8 @@ public class InicioFragment extends Fragment {
             if (usuarioActual != null && isAdded()) {
                 requireActivity().runOnUiThread(() -> {
                     updateUIByRole().run();
-                    cargarCursosEnLista();
+                    Calendar cal = Calendar.getInstance();
+                    cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
                 });
             }
         });
@@ -86,8 +110,8 @@ public class InicioFragment extends Fragment {
             String rol = usuarioActual.rol != null ? usuarioActual.rol : "estudiante";
 
             if ("estudiante".equals(rol)) {
-                tvRolInfo.setText("Rol: Estudiante. Selecciona abajo un curso para entrar a su espacio de trabajo y ver las publicaciones del profesor.");
-                btnAccionRol.setVisibility(View.GONE); // Reemplazado por el listado directo en el RecyclerView
+                tvRolInfo.setText("Rol: Estudiante. Selecciona una fecha en el calendario o consulta tus calificaciones (HU-15/HU-16).");
+                btnAccionRol.setVisibility(View.GONE);
 
                 btnBuscarInscribirCurso.setVisibility(View.VISIBLE);
                 btnBuscarInscribirCurso.setOnClickListener(v -> mostrarDialogoBuscarCursoParaInscribirse());
@@ -98,10 +122,13 @@ public class InicioFragment extends Fragment {
                 btnMisActividades.setVisibility(View.VISIBLE);
                 btnMisActividades.setOnClickListener(v -> mostrarDialogoMisActividades());
 
+                btnMisCalificaciones.setVisibility(View.VISIBLE);
+                btnMisCalificaciones.setOnClickListener(v -> mostrarDialogoMisCalificaciones());
+
                 btnDocentePublicar.setVisibility(View.GONE);
 
             } else if ("docente".equals(rol)) {
-                tvRolInfo.setText("Rol: Docente. Selecciona tu curso abajo para gestionarlo, o crea uno nuevo.");
+                tvRolInfo.setText("Rol: Docente. Selecciona una fecha en el calendario para consultar actividades o crea un nuevo curso.");
                 btnAccionRol.setText("Crear Nuevo Curso");
                 btnAccionRol.setVisibility(View.VISIBLE);
                 btnAccionRol.setOnClickListener(v -> startActivity(new Intent(requireContext(), CrearCursoActivity.class)));
@@ -109,6 +136,7 @@ public class InicioFragment extends Fragment {
                 btnBuscarInscribirCurso.setVisibility(View.GONE);
                 btnEntregarTarea.setVisibility(View.GONE);
                 btnMisActividades.setVisibility(View.GONE);
+                btnMisCalificaciones.setVisibility(View.GONE);
                 btnDocentePublicar.setVisibility(View.GONE);
 
             } else if ("administrador".equals(rol)) {
@@ -120,22 +148,40 @@ public class InicioFragment extends Fragment {
                 btnBuscarInscribirCurso.setVisibility(View.GONE);
                 btnEntregarTarea.setVisibility(View.GONE);
                 btnMisActividades.setVisibility(View.GONE);
+                btnMisCalificaciones.setVisibility(View.GONE);
                 btnDocentePublicar.setVisibility(View.GONE);
             }
         };
     }
 
-    private void cargarCursosEnLista() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            List<Curso> cursosList;
-            String rol = usuarioActual.rol != null ? usuarioActual.rol : "estudiante";
+    private void cargarActividadesPorFecha(int year, int month, int dayOfMonth) {
+        if (usuarioActual == null) return;
+        tvTituloActividadesFecha.setText("Actividades para la fecha: " + dayOfMonth + "/" + (month + 1) + "/" + year);
 
-            if ("estudiante".equals(rol)) {
-                cursosList = db.matriculaDao().obtenerCursosMatriculados(usuarioActual.id);
-            } else if ("docente".equals(rol)) {
-                cursosList = db.cursoDao().obtenerCursosPorDocente(usuarioActual.id);
+        Executors.newSingleThreadExecutor().execute(() -> {
+            String rol = usuarioActual.rol != null ? usuarioActual.rol : "estudiante";
+            List<ActividadCurso> todas;
+            if ("docente".equals(rol)) {
+                todas = db.actividadCursoDao().obtenerTodasActividadesParaDocente(usuarioActual.id);
             } else {
-                cursosList = new ArrayList<>(); // admin puede ver lista vacía o general
+                todas = db.actividadCursoDao().obtenerTodasActividadesParaEstudiante(usuarioActual.id);
+            }
+
+            List<ActividadCurso> filtradas = new ArrayList<>();
+            Calendar calTarget = Calendar.getInstance();
+
+            for (ActividadCurso act : todas) {
+                calTarget.setTimeInMillis(act.fechaCierre);
+                int y = calTarget.get(Calendar.YEAR);
+                int m = calTarget.get(Calendar.MONTH);
+                int d = calTarget.get(Calendar.DAY_OF_MONTH);
+
+                if (y == year && m == month && d == dayOfMonth) {
+                    if ("estudiante".equals(rol) && (!act.visible || act.fechaApertura > System.currentTimeMillis())) {
+                        continue;
+                    }
+                    filtradas.add(act);
+                }
             }
 
             if (!isAdded()) return;
@@ -150,26 +196,122 @@ public class InicioFragment extends Fragment {
 
                     @Override
                     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-                        Curso curso = cursosList.get(position);
+                        ActividadCurso act = filtradas.get(position);
                         TextView tv1 = holder.itemView.findViewById(android.R.id.text1);
                         TextView tv2 = holder.itemView.findViewById(android.R.id.text2);
-                        tv1.setText(curso.codigo + " - " + curso.nombre);
-                        tv2.setText("Periodo: " + curso.periodo + " | " + curso.descripcion);
+                        tv1.setText(act.titulo + " (" + act.porcentaje + "%)");
+                        tv2.setText("Instrucciones: " + act.instrucciones + " | Cierra a las: " + DateFormat.format("HH:mm", act.fechaCierre));
 
                         holder.itemView.setOnClickListener(v -> {
-                            Intent intent = new Intent(requireContext(), MaterialesCursoActivity.class);
-                            intent.putExtra("CURSO_ID", curso.id);
-                            startActivity(intent);
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle(act.titulo)
+                                    .setMessage("Instrucciones:\n" + act.instrucciones + "\n\nPeso en nota: " + act.porcentaje + "%\nFecha de cierre: " + DateFormat.format("dd/MM/yyyy HH:mm", act.fechaCierre))
+                                    .setPositiveButton("Cerrar", null)
+                                    .show();
                         });
                     }
 
                     @Override
                     public int getItemCount() {
-                        return cursosList.size();
+                        return filtradas.size();
                     }
                 });
             });
         });
+    }
+
+    private void mostrarDialogoMisCalificaciones() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<Entrega> entregas = db.entregaDao().obtenerTodasEntregasEstudiante(usuarioActual.id);
+            List<Entrega> calificadas = new ArrayList<>();
+            for (Entrega e : entregas) {
+                if (e.calificacion != null) calificadas.add(e);
+            }
+
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> {
+                if (calificadas.isEmpty()) {
+                    Toast.makeText(requireContext(), "No tienes calificaciones registradas aún", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                double sumaNotasPonderadas = 0;
+                double sumaPorcentajes = 0;
+
+                String[] items = new String[calificadas.size()];
+                for (int i = 0; i < calificadas.size(); i++) {
+                    Entrega ent = calificadas.get(i);
+                    ActividadCurso act = db.actividadCursoDao().obtenerPorId(ent.actividadId);
+                    int porcentaje = act != null ? act.porcentaje : 20;
+                    sumaNotasPonderadas += (ent.calificacion * porcentaje);
+                    sumaPorcentajes += porcentaje;
+
+                    items[i] = ent.tituloTarea + " — Nota: " + ent.calificacion + " / 5.0 (" + porcentaje + "%)" + (ent.estadoRevision != null ? " [Revisión: " + ent.estadoRevision + "]" : "");
+                }
+
+                double promedioPonderado = sumaPorcentajes > 0 ? (sumaNotasPonderadas / sumaPorcentajes) : 0;
+
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("HU-15: Mis Calificaciones (Promedio: " + String.format(Locale.getDefault(), "%.2f", promedioPonderado) + " / 5.0)")
+                        .setItems(items, (d, which) -> {
+                            Entrega seleccionada = calificadas.get(which);
+                            mostrarDetalleCalificacionYRevision(seleccionada);
+                        })
+                        .setPositiveButton("Cerrar", null)
+                        .show();
+            });
+        });
+    }
+
+    private void mostrarDetalleCalificacionYRevision(Entrega entrega) {
+        String retro = entrega.retroalimentacion != null ? entrega.retroalimentacion : "Sin comentarios";
+        String estadoRev = entrega.estadoRevision != null ? "\nEstado de revisión: " + entrega.estadoRevision : "";
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext())
+                .setTitle("Detalle: " + entrega.tituloTarea)
+                .setMessage("Calificación: " + entrega.calificacion + " / 5.0" +
+                        "\nRetroalimentación del docente:\n" + retro +
+                        estadoRev);
+
+        long cincoDiasMs = 5L * 24 * 60 * 60 * 1000;
+        boolean dentroDe5Dias = (System.currentTimeMillis() - entrega.fechaCalificacion) <= cincoDiasMs;
+
+        if (dentroDe5Dias && (entrega.estadoRevision == null || entrega.estadoRevision.isEmpty())) {
+            builder.setNeutralButton("Solicitar Revisión (HU-16)", (d, w) -> {
+                mostrarDialogoMotivoRevision(entrega);
+            });
+        }
+
+        builder.setPositiveButton("Cerrar", null).show();
+    }
+
+    private void mostrarDialogoMotivoRevision(Entrega entrega) {
+        EditText input = new EditText(requireContext());
+        input.setHint("Explique detalladamente el motivo de la revisión (Mínimo 100 caracteres)...");
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("HU-16: Solicitud de Revisión de Calificación")
+                .setView(input)
+                .setPositiveButton("Enviar Solicitud", (dialog, which) -> {
+                    String motivo = input.getText().toString().trim();
+                    if (motivo.length() < 100) {
+                        Toast.makeText(requireContext(), "El motivo debe tener al menos 100 caracteres (actuales: " + motivo.length() + ")", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        entrega.solicitudRevision = true;
+                        entrega.motivoRevision = motivo;
+                        entrega.estadoRevision = "en revisión";
+                        db.entregaDao().actualizarEntrega(entrega);
+
+                        requireActivity().runOnUiThread(() ->
+                                Toast.makeText(requireContext(), "Solicitud enviada al docente con éxito (Estado: En revisión)", Toast.LENGTH_LONG).show()
+                        );
+                    });
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
     }
 
     private void mostrarDialogoMisActividades() {
@@ -196,30 +338,11 @@ public class InicioFragment extends Fragment {
                         .setTitle("Mis Actividades Pendientes")
                         .setItems(items, (d, which) -> {
                             ActividadCurso seleccionada = actividades.get(which);
-                            Executors.newSingleThreadExecutor().execute(() -> {
-                                Entrega entregaPrevia = db.entregaDao().obtenerEntregaPorActividadYEstudiante(seleccionada.id, usuarioActual.id);
-                                requireActivity().runOnUiThread(() -> {
-                                    String estadoEntrega = "Pendiente";
-                                    String infoExtra = "";
-                                    if (entregaPrevia != null) {
-                                        estadoEntrega = entregaPrevia.estado != null ? entregaPrevia.estado : "entregada";
-                                        infoExtra = "\nComprobante: " + (entregaPrevia.comprobanteCodigo != null ? entregaPrevia.comprobanteCodigo : "N/A")
-                                                + "\nFecha entrega: " + DateFormat.format("dd/MM/yyyy HH:mm", entregaPrevia.fechaEntrega)
-                                                + (entregaPrevia.calificacion != null ? "\nNota: " + entregaPrevia.calificacion + " / 5.0" : "")
-                                                + (entregaPrevia.retroalimentacion != null ? "\nRetroalimentación: " + entregaPrevia.retroalimentacion : "");
-                                    }
-
-                                    new AlertDialog.Builder(requireContext())
-                                            .setTitle(seleccionada.titulo)
-                                            .setMessage("Instrucciones: " + seleccionada.instrucciones
-                                                    + "\nPeso en nota: " + seleccionada.porcentaje + "%"
-                                                    + "\nEstado: " + estadoEntrega
-                                                    + infoExtra
-                                                    + "\nFecha límite: " + DateFormat.format("dd/MM/yyyy HH:mm", seleccionada.fechaCierre))
-                                            .setPositiveButton("Cerrar", null)
-                                            .show();
-                                });
-                            });
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle(seleccionada.titulo)
+                                    .setMessage("Instrucciones: " + seleccionada.instrucciones + "\nPeso en nota: " + seleccionada.porcentaje + "%\nAcepta fuera de plazo: " + (seleccionada.aceptaFueraDePlazo ? "Sí" : "No") + "\nFecha de cierre: " + DateFormat.format("dd/MM/yyyy HH:mm", seleccionada.fechaCierre))
+                                    .setPositiveButton("Cerrar", null)
+                                    .show();
                         })
                         .setPositiveButton("Cerrar", null)
                         .show();
@@ -285,10 +408,9 @@ public class InicioFragment extends Fragment {
             m.fechaMatricula = System.currentTimeMillis();
             db.matriculaDao().matricular(m);
 
-            requireActivity().runOnUiThread(() -> {
-                Toast.makeText(requireContext(), "¡Te has matriculado exitosamente en " + nombreCurso + "!", Toast.LENGTH_LONG).show();
-                cargarCursosEnLista();
-            });
+            requireActivity().runOnUiThread(() ->
+                    Toast.makeText(requireContext(), "¡Te has matriculado exitosamente en " + nombreCurso + "!", Toast.LENGTH_LONG).show()
+            );
         });
     }
 
@@ -342,69 +464,35 @@ public class InicioFragment extends Fragment {
                             realizarEntrega(actElegida.id, cursoId, actElegida.titulo);
                         })
                         .show();
-            });
+                });
         });
     }
 
     private void realizarEntrega(int actividadId, int cursoId, String tituloActividad) {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            Entrega entregaExistente = db.entregaDao().obtenerEntregaPorActividadYEstudiante(actividadId, usuarioActual.id);
-            requireActivity().runOnUiThread(() -> {
-                EditText inputTexto = new EditText(requireContext());
-                inputTexto.setHint("Texto del trabajo o enlace...");
-                if (entregaExistente != null && entregaExistente.descripcionEntrega != null) {
-                    inputTexto.setText(entregaExistente.descripcionEntrega);
-                }
+        EditText inputTitulo = new EditText(requireContext());
+        inputTitulo.setHint("Comentarios o Enlace del trabajo (Ej: https://github.com/...)");
 
-                String accion = (entregaExistente != null) ? "Reemplazar Entrega" : "Enviar Entrega";
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Enviar Entrega: " + tituloActividad)
+                .setView(inputTitulo)
+                .setPositiveButton("Enviar Entrega", (dialog, which) -> {
+                    String desc = inputTitulo.getText().toString().trim();
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        Entrega entrega = new Entrega();
+                        entrega.cursoId = cursoId;
+                        entrega.estudianteId = usuarioActual.id;
+                        entrega.tituloTarea = tituloActividad;
+                        entrega.descripcionEntrega = desc.isEmpty() ? "Entrega de actividad" : desc;
+                        entrega.fechaEntrega = System.currentTimeMillis();
+                        entrega.estado = "Entregado";
+                        db.entregaDao().insertarEntrega(entrega);
 
-                new AlertDialog.Builder(requireContext())
-                        .setTitle("Subir Trabajo: " + tituloActividad)
-                        .setView(inputTexto)
-                        .setPositiveButton(accion, (dialog, which) -> {
-                            String desc = inputTexto.getText().toString().trim();
-                            if (desc.isEmpty() && (entregaExistente == null || entregaExistente.archivoUrl == null)) {
-                                Toast.makeText(requireContext(), "Ingresa el texto o detalle de tu entrega", Toast.LENGTH_SHORT).show();
-                                return;
-                            }
-
-                            long fechaEnvio = System.currentTimeMillis();
-                            String codigoComprobante = "COMP-" + actividadId + "-" + usuarioActual.id + "-" + (fechaEnvio % 1000000);
-
-                            Executors.newSingleThreadExecutor().execute(() -> {
-                                Entrega entrega = (entregaExistente != null) ? entregaExistente : new Entrega();
-                                entrega.cursoId = cursoId;
-                                entrega.actividadId = actividadId;
-                                entrega.estudianteId = usuarioActual.id;
-                                entrega.tituloTarea = tituloActividad;
-                                entrega.descripcionEntrega = desc;
-                                entrega.fechaEntrega = fechaEnvio;
-                                entrega.estado = "entregada";
-                                entrega.comprobanteCodigo = codigoComprobante;
-
-                                if (entregaExistente != null) {
-                                    db.entregaDao().actualizarEntrega(entrega);
-                                } else {
-                                    db.entregaDao().insertarEntrega(entrega);
-                                }
-
-                                requireActivity().runOnUiThread(() -> {
-                                    String fechaStr = DateFormat.format("dd/MM/yyyy HH:mm:ss", fechaEnvio).toString();
-                                    new AlertDialog.Builder(requireContext())
-                                            .setTitle("Comprobante Formal de Entrega (HU-13)")
-                                            .setMessage("✅ ¡Entrega enviada con éxito!\n\n"
-                                                    + "Actividad: " + tituloActividad + "\n"
-                                                    + "Código Comprobante: " + codigoComprobante + "\n"
-                                                    + "Fecha y Hora: " + fechaStr + "\n"
-                                                    + "Estado: entregada")
-                                            .setPositiveButton("Aceptar", null)
-                                            .show();
-                                });
-                            });
-                        })
-                        .setNegativeButton("Cancelar", null)
-                        .show();
-            });
-        });
+                        requireActivity().runOnUiThread(() ->
+                                Toast.makeText(requireContext(), "¡Trabajo entregado con éxito!", Toast.LENGTH_LONG).show()
+                        );
+                    });
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
     }
 }
