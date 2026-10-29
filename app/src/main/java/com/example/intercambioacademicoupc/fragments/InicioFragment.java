@@ -356,6 +356,12 @@ public class InicioFragment extends Fragment {
         Executors.newSingleThreadExecutor().execute(() -> {
             List<ActividadCurso> actividades = db.actividadCursoDao().obtenerTodasActividadesParaEstudiante(usuarioActual.id);
             List<Entrega> entregas = db.entregaDao().obtenerTodasEntregasEstudiante(usuarioActual.id);
+            List<Curso> cursos = db.matriculaDao().obtenerCursosMatriculados(usuarioActual.id);
+
+            Map<Integer, String> mapaCursos = new HashMap<>();
+            for (Curso c : cursos) {
+                mapaCursos.put(c.id, c.nombre);
+            }
 
             Map<Integer, Entrega> mapaEntregas = new HashMap<>();
             for (Entrega e : entregas) {
@@ -376,14 +382,17 @@ public class InicioFragment extends Fragment {
                 for (int i = 0; i < actividades.size(); i++) {
                     ActividadCurso act = actividades.get(i);
                     Entrega ent = mapaEntregas.get(act.id);
+                    String cursoNombre = mapaCursos.get(act.cursoId) != null ? mapaCursos.get(act.cursoId) : "Curso";
 
                     if (ent != null && ent.calificacion != null) {
                         sumaNotasPonderadas += (ent.calificacion * act.porcentaje);
                         sumaPorcentajes += act.porcentaje;
-                        String estadoRev = ent.estadoRevision != null ? " [Revisión: " + ent.estadoRevision + "]" : "";
-                        items[i] = act.titulo + " — Nota: " + ent.calificacion + " / 5.0 (" + act.porcentaje + "%)" + estadoRev;
+                        String feedbackInfo = ent.retroalimentacion != null && !ent.retroalimentacion.isEmpty() ? " | " + ent.retroalimentacion : "";
+                        String estadoRev = ent.estadoRevision != null ? " [" + ent.estadoRevision + "]" : "";
+                        items[i] = "📘 " + act.titulo + " (" + act.porcentaje + "%)\n   Curso: " + cursoNombre + "\n   Nota: " + ent.calificacion + " / 5.0" + feedbackInfo + estadoRev;
                     } else {
-                        items[i] = act.titulo + " — Estado: Pendiente de Calificación (" + act.porcentaje + "%)";
+                        // Criterio: Si una actividad aún no ha sido calificada se muestra como "pendiente"
+                        items[i] = "📘 " + act.titulo + " (" + act.porcentaje + "%)\n   Curso: " + cursoNombre + "\n   Estado: pendiente";
                     }
                 }
 
@@ -397,7 +406,11 @@ public class InicioFragment extends Fragment {
                             if (entSel != null && entSel.calificacion != null) {
                                 mostrarDetalleCalificacionYRevision(entSel);
                             } else {
-                                Toast.makeText(requireContext(), "Esta actividad está pendiente de calificación por parte del docente.", Toast.LENGTH_LONG).show();
+                                new AlertDialog.Builder(requireContext())
+                                        .setTitle(actSel.titulo)
+                                        .setMessage("Estado: pendiente de calificación por el docente\nPonderación: " + actSel.porcentaje + "%\nInstrucciones:\n" + actSel.instrucciones)
+                                        .setPositiveButton("Cerrar", null)
+                                        .show();
                             }
                         })
                         .setPositiveButton("Cerrar", null)

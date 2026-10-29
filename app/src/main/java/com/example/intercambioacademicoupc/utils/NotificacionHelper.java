@@ -1,50 +1,59 @@
 package com.example.intercambioacademicoupc.utils;
 
-import android.annotation.SuppressLint;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.os.Build;
-
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
+import com.example.intercambioacademicoupc.R;
+import com.example.intercambioacademicoupc.models.AppDatabase;
+import com.example.intercambioacademicoupc.models.NotificacionItem;
+import java.util.concurrent.Executors;
 
 public class NotificacionHelper {
-    private static final String CHANNEL_ID = "upc_academic_channel";
-    private static final String CHANNEL_NAME = "Intercambio Académico UPC";
-    private static final String CHANNEL_DESC = "Notificaciones de cursos, calificaciones y entregas";
 
-    public static void crearCanalNotificaciones(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_DEFAULT
-            );
-            channel.setDescription(CHANNEL_DESC);
-            NotificationManager manager = context.getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(channel);
-            }
-        }
+    private static final String CHANNEL_ID = "canal_notificaciones_upc";
+
+    public static void registrarYNotificar(Context context, int usuarioId, String titulo, String mensaje, String tipo) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            AppDatabase db = AppDatabase.getDatabase(context);
+
+            NotificacionItem item = new NotificacionItem();
+            item.usuarioId = usuarioId;
+            item.titulo = titulo;
+            item.mensaje = mensaje;
+            item.tipo = tipo;
+            item.fecha = System.currentTimeMillis();
+            item.leida = false;
+
+            db.notificacionDao().insertarNotificacion(item);
+
+            mostrarNotificacionSistema(context, titulo, mensaje);
+        });
     }
 
-    @SuppressLint("MissingPermission")
     public static void mostrarNotificacion(Context context, String titulo, String mensaje, int notificationId) {
-        crearCanalNotificaciones(context);
+        mostrarNotificacionSistema(context, titulo, mensaje);
+    }
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle(titulo)
-                .setContentText(mensaje)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(mensaje))
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setAutoCancel(true);
-
+    private static void mostrarNotificacionSistema(Context context, String titulo, String mensaje) {
         try {
-            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-            notificationManager.notify(notificationId, builder.build());
-        } catch (Exception ignored) {
-        }
+            NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager == null) return;
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Notificaciones UPC", NotificationManager.IMPORTANCE_DEFAULT);
+                manager.createNotificationChannel(channel);
+            }
+
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle(titulo)
+                    .setContentText(mensaje)
+                    .setAutoCancel(true)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+            manager.notify((int) System.currentTimeMillis(), builder.build());
+        } catch (Exception ignored) {}
     }
 }

@@ -22,8 +22,9 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
     RegistroAccesoMaterial.class,
     Matricula.class,
     Entrega.class,
-    ActividadCurso.class
-}, version = 13) // Migración 12 -> 13 para HU-18 (preferencias de notificaciones)
+    ActividadCurso.class,
+    NotificacionItem.class
+}, version = 13) // Migración 12 -> 13 para HU-18 (notificaciones)
 
 public abstract class AppDatabase extends RoomDatabase {
     public abstract UsuarioDao usuarioDao();
@@ -34,6 +35,7 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract RegistroAccesoMaterialDao registroAccesoMaterialDao();
     public abstract EntregaDao entregaDao();
     public abstract ActividadCursoDao actividadCursoDao();
+    public abstract NotificacionDao notificacionDao();
 
     private static volatile AppDatabase INSTANCIA;
 
@@ -188,6 +190,7 @@ public abstract class AppDatabase extends RoomDatabase {
             if (!existeColumna(db, "usuarios", "notifNotaPublicada")) {
                 db.execSQL("ALTER TABLE usuarios ADD COLUMN notifNotaPublicada INTEGER NOT NULL DEFAULT 1");
             }
+            db.execSQL("CREATE TABLE IF NOT EXISTS `notificaciones` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `usuarioId` INTEGER NOT NULL, `titulo` TEXT, `mensaje` TEXT, `tipo` TEXT, `fecha` INTEGER NOT NULL, `leida` INTEGER NOT NULL DEFAULT 0)");
         }
     };
 
