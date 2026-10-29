@@ -329,29 +329,32 @@ public class InicioFragment extends Fragment {
                 if (e.calificacion != null) calificadas.add(e);
             }
 
+            if (calificadas.isEmpty()) {
+                if (!isAdded()) return;
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(requireContext(), "No tienes calificaciones registradas aún", Toast.LENGTH_SHORT).show()
+                );
+                return;
+            }
+
+            double sumaNotasPonderadas = 0;
+            double sumaPorcentajes = 0;
+
+            String[] items = new String[calificadas.size()];
+            for (int i = 0; i < calificadas.size(); i++) {
+                Entrega ent = calificadas.get(i);
+                ActividadCurso act = db.actividadCursoDao().obtenerPorId(ent.actividadId);
+                int porcentaje = act != null ? act.porcentaje : 20;
+                sumaNotasPonderadas += (ent.calificacion * porcentaje);
+                sumaPorcentajes += porcentaje;
+
+                items[i] = ent.tituloTarea + " — Nota: " + ent.calificacion + " / 5.0 (" + porcentaje + "%)" + (ent.estadoRevision != null ? " [Revisión: " + ent.estadoRevision + "]" : "");
+            }
+
+            double promedioPonderado = sumaPorcentajes > 0 ? (sumaNotasPonderadas / sumaPorcentajes) : 0;
+
             if (!isAdded()) return;
             requireActivity().runOnUiThread(() -> {
-                if (calificadas.isEmpty()) {
-                    Toast.makeText(requireContext(), "No tienes calificaciones registradas aún", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                double sumaNotasPonderadas = 0;
-                double sumaPorcentajes = 0;
-
-                String[] items = new String[calificadas.size()];
-                for (int i = 0; i < calificadas.size(); i++) {
-                    Entrega ent = calificadas.get(i);
-                    ActividadCurso act = db.actividadCursoDao().obtenerPorId(ent.actividadId);
-                    int porcentaje = act != null ? act.porcentaje : 20;
-                    sumaNotasPonderadas += (ent.calificacion * porcentaje);
-                    sumaPorcentajes += porcentaje;
-
-                    items[i] = ent.tituloTarea + " — Nota: " + ent.calificacion + " / 5.0 (" + porcentaje + "%)" + (ent.estadoRevision != null ? " [Revisión: " + ent.estadoRevision + "]" : "");
-                }
-
-                double promedioPonderado = sumaPorcentajes > 0 ? (sumaNotasPonderadas / sumaPorcentajes) : 0;
-
                 new AlertDialog.Builder(requireContext())
                         .setTitle("HU-15: Mis Calificaciones (Promedio: " + String.format(Locale.getDefault(), "%.2f", promedioPonderado) + " / 5.0)")
                         .setItems(items, (d, which) -> {
