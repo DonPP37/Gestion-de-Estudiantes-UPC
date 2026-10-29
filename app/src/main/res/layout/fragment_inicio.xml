@@ -28,9 +28,25 @@
             android:text="Consulta tus cursos y el calendario interactivo de actividades."
             android:textSize="14sp"
             android:textColor="#666666"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="12dp"/>
 
-        <!-- Calendario Interactivo (HU-15 / HU-16) -->
+        <!-- Botones Principales de Acceso a Cursos (Arriba del Calendario) -->
+        <Button
+            android:id="@+id/btnDocentePublicar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Mis Cursos Asignados (Entrar / Gestionar)"
+            android:layout_marginBottom="10dp"
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/btnAccionRol"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Acción"
+            android:layout_marginBottom="12dp"/>
+
+        <!-- Calendario Interactivo -->
         <CalendarView
             android:id="@+id/calendarView"
             android:layout_width="match_parent"
@@ -49,7 +65,7 @@
             android:textColor="#1976D2"
             android:layout_marginBottom="8dp"/>
 
-        <!-- HU-17: Filtros de Calendario -->
+        <!-- Filtros de Calendario -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -74,25 +90,18 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerInicioCursos"
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="180dp"
             android:background="#FFFFFF"
             android:padding="8dp"
             android:layout_marginBottom="12dp"/>
 
-        <!-- Botones de acción general -->
-        <Button
-            android:id="@+id/btnAccionRol"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Acción"
-            android:layout_marginBottom="12dp"/>
-
+        <!-- Botones adicionales -->
         <Button
             android:id="@+id/btnBuscarInscribirCurso"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Buscar e Inscribirme a un Curso"
-            android:layout_marginBottom="12dp"
+            android:layout_marginBottom="10dp"
             android:visibility="gone"/>
 
         <Button
@@ -100,7 +109,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Entregar Tarea / Trabajo"
-            android:layout_marginBottom="12dp"
+            android:layout_marginBottom="10dp"
             android:visibility="gone"/>
 
         <Button
@@ -108,7 +117,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Mis Actividades Pendientes"
-            android:layout_marginBottom="12dp"
+            android:layout_marginBottom="10dp"
             android:visibility="gone"/>
 
         <Button
@@ -116,15 +125,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Mis Calificaciones y Promedio"
-            android:layout_marginBottom="12dp"
-            android:visibility="gone"/>
-
-        <Button
-            android:id="@+id/btnDocentePublicar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Gestionar / Publicar Materiales"
-            android:layout_marginBottom="12dp"
+            android:layout_marginBottom="10dp"
             android:visibility="gone"/>
 
     </LinearLayout>

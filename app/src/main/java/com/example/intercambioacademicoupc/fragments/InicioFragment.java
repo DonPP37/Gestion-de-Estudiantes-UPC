@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.intercambioacademicoupc.AdminUsuariosActivity;
 import com.example.intercambioacademicoupc.CrearCursoActivity;
+import com.example.intercambioacademicoupc.MaterialesCursoActivity;
 import com.example.intercambioacademicoupc.R;
 import com.example.intercambioacademicoupc.models.ActividadCurso;
 import com.example.intercambioacademicoupc.models.AppDatabase;
@@ -37,8 +38,10 @@ import com.example.intercambioacademicoupc.session.SessionManager;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 public class InicioFragment extends Fragment {
@@ -47,14 +50,14 @@ public class InicioFragment extends Fragment {
     private CalendarView calendarView;
     private Spinner spinnerFiltroCurso;
     private CheckBox chkOcultarEntregadas;
-    private List<Curso> cursosList = new ArrayList<>();
-    private int cursoFiltroIdSeleccionado = -1;
-
     private Button btnAccionRol, btnBuscarInscribirCurso, btnEntregarTarea, btnMisActividades, btnMisCalificaciones, btnDocentePublicar;
     private RecyclerView recyclerInicioCursos;
     private AppDatabase db;
     private SessionManager sessionManager;
     private Usuario usuarioActual;
+
+    private List<Curso> cursosList = new ArrayList<>();
+    private int cursoFiltroIdSeleccionado = -1;
 
     @Nullable
     @Override
@@ -81,16 +84,16 @@ public class InicioFragment extends Fragment {
         db = AppDatabase.getDatabase(requireContext());
         sessionManager = new SessionManager(requireContext());
 
-        chkOcultarEntregadas.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            Calendar cal = Calendar.getInstance();
-            cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
-        });
-
         Calendar cal = Calendar.getInstance();
         cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
 
         calendarView.setOnDateChangeListener((view1, year, month, dayOfMonth) -> {
             cargarActividadesPorFecha(year, month, dayOfMonth);
+        });
+
+        chkOcultarEntregadas.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            Calendar c = Calendar.getInstance();
+            cargarActividadesPorFecha(c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
         });
 
         cargarDatosUsuario();
@@ -102,6 +105,7 @@ public class InicioFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if (usuarioActual != null) {
+            cargarCursosParaFiltro();
             Calendar cal = Calendar.getInstance();
             cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
         }
@@ -117,7 +121,6 @@ public class InicioFragment extends Fragment {
                     cargarCursosParaFiltro();
                     Calendar cal = Calendar.getInstance();
                     cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
-                    verificarNotificaciones48h();
                 });
             }
         });
@@ -166,39 +169,16 @@ public class InicioFragment extends Fragment {
         });
     }
 
-    private void verificarNotificaciones48h() {
-        if (usuarioActual == null || !"estudiante".equals(usuarioActual.rol)) return;
-        if (!usuarioActual.notifEntrega48h) return;
-
-        Executors.newSingleThreadExecutor().execute(() -> {
-            long ahora = System.currentTimeMillis();
-            long limite48h = ahora + (48L * 60 * 60 * 1000);
-            List<ActividadCurso> actividades = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioActual.id, ahora);
-            for (ActividadCurso act : actividades) {
-                if (act.fechaCierre > ahora && act.fechaCierre <= limite48h) {
-                    Entrega entrega = db.entregaDao().obtenerEntregaPorActividadYEstudiante(act.id, usuarioActual.id);
-                    if (entrega == null) {
-                        com.example.intercambioacademicoupc.utils.NotificacionHelper.mostrarNotificacion(
-                                requireContext(),
-                                "⚠️ Entrega próxima a vencer (48h)",
-                                "La actividad '" + act.titulo + "' vence pronto. ¡No olvides entregarla!",
-                                act.id
-                        );
-                        break;
-                    }
-                }
-            }
-        });
-    }
-
     private Runnable updateUIByRole() {
         return () -> {
             tvBienvenidaInicio.setText("¡Hola, " + usuarioActual.nombre + "!");
             String rol = usuarioActual.rol != null ? usuarioActual.rol : "estudiante";
 
             if ("estudiante".equals(rol)) {
-                tvRolInfo.setText("Rol: Estudiante. Selecciona una fecha en el calendario o consulta tus calificaciones (HU-15/HU-16).");
-                btnAccionRol.setVisibility(View.GONE);
+                tvRolInfo.setText("Rol: Estudiante. Selecciona tus cursos para ingresar, o consulta el calendario de actividades.");
+                btnAccionRol.setText("📚 Mis Cursos Matriculados");
+                btnAccionRol.setVisibility(View.VISIBLE);
+                btnAccionRol.setOnClickListener(v -> elegirCursoMatriculadoParaEntrar());
 
                 btnBuscarInscribirCurso.setVisibility(View.VISIBLE);
                 btnBuscarInscribirCurso.setOnClickListener(v -> mostrarDialogoBuscarCursoParaInscribirse());
@@ -215,8 +195,13 @@ public class InicioFragment extends Fragment {
                 btnDocentePublicar.setVisibility(View.GONE);
 
             } else if ("docente".equals(rol)) {
-                tvRolInfo.setText("Rol: Docente. Selecciona una fecha en el calendario para consultar actividades o crea un nuevo curso.");
-                btnAccionRol.setText("Crear Nuevo Curso");
+                tvRolInfo.setText("Rol: Docente. Entra a tus cursos para gestionar materiales y actividades, o crea uno nuevo.");
+
+                btnDocentePublicar.setText("📚 Mis Cursos Asignados (Entrar / Gestionar)");
+                btnDocentePublicar.setVisibility(View.VISIBLE);
+                btnDocentePublicar.setOnClickListener(v -> elegirCursoDocenteParaEntrar());
+
+                btnAccionRol.setText("➕ Crear Nuevo Curso");
                 btnAccionRol.setVisibility(View.VISIBLE);
                 btnAccionRol.setOnClickListener(v -> startActivity(new Intent(requireContext(), CrearCursoActivity.class)));
 
@@ -224,7 +209,6 @@ public class InicioFragment extends Fragment {
                 btnEntregarTarea.setVisibility(View.GONE);
                 btnMisActividades.setVisibility(View.GONE);
                 btnMisCalificaciones.setVisibility(View.GONE);
-                btnDocentePublicar.setVisibility(View.GONE);
 
             } else if ("administrador".equals(rol)) {
                 tvRolInfo.setText("Rol: Administrador. Gestiona usuarios, accesos y configuración general del sistema.");
@@ -241,6 +225,56 @@ public class InicioFragment extends Fragment {
         };
     }
 
+    private void elegirCursoMatriculadoParaEntrar() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<Curso> cursos = db.matriculaDao().obtenerCursosMatriculados(usuarioActual.id);
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> {
+                if (cursos.isEmpty()) {
+                    Toast.makeText(requireContext(), "No estás matriculado en ningún curso", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] nombres = new String[cursos.size()];
+                for (int i = 0; i < cursos.size(); i++) {
+                    nombres[i] = cursos.get(i).codigo + " - " + cursos.get(i).nombre;
+                }
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Mis Cursos Matriculados")
+                        .setItems(nombres, (d, which) -> {
+                            Intent intent = new Intent(requireContext(), MaterialesCursoActivity.class);
+                            intent.putExtra("CURSO_ID", cursos.get(which).id);
+                            startActivity(intent);
+                        })
+                        .show();
+            });
+        });
+    }
+
+    private void elegirCursoDocenteParaEntrar() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<Curso> cursos = db.cursoDao().obtenerCursosPorDocente(usuarioActual.id);
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> {
+                if (cursos.isEmpty()) {
+                    Toast.makeText(requireContext(), "No tienes cursos creados aún", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] nombres = new String[cursos.size()];
+                for (int i = 0; i < cursos.size(); i++) {
+                    nombres[i] = cursos.get(i).codigo + " - " + cursos.get(i).nombre;
+                }
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Mis Cursos Asignados")
+                        .setItems(nombres, (d, which) -> {
+                            Intent intent = new Intent(requireContext(), MaterialesCursoActivity.class);
+                            intent.putExtra("CURSO_ID", cursos.get(which).id);
+                            startActivity(intent);
+                        })
+                        .show();
+            });
+        });
+    }
+
     private void cargarActividadesPorFecha(int year, int month, int dayOfMonth) {
         if (usuarioActual == null) return;
         tvTituloActividadesFecha.setText("Actividades para la fecha: " + dayOfMonth + "/" + (month + 1) + "/" + year);
@@ -254,8 +288,7 @@ public class InicioFragment extends Fragment {
                 todas = db.actividadCursoDao().obtenerTodasActividadesParaEstudiante(usuarioActual.id);
             }
 
-            boolean ocultarEntregadas = chkOcultarEntregadas != null && chkOcultarEntregadas.isChecked();
-
+            boolean ocultarEntregadas = chkOcultarEntregadas.isChecked();
             List<ActividadCurso> filtradas = new ArrayList<>();
             Calendar calTarget = Calendar.getInstance();
 
@@ -275,10 +308,8 @@ public class InicioFragment extends Fragment {
                             continue;
                         }
                         if (ocultarEntregadas) {
-                            Entrega entrega = db.entregaDao().obtenerEntregaPorActividadYEstudiante(act.id, usuarioActual.id);
-                            if (entrega != null) {
-                                continue;
-                            }
+                            Entrega e = db.entregaDao().obtenerEntregaPorActividadYEstudiante(act.id, usuarioActual.id);
+                            if (e != null) continue;
                         }
                     }
                     filtradas.add(act);
@@ -323,43 +354,51 @@ public class InicioFragment extends Fragment {
 
     private void mostrarDialogoMisCalificaciones() {
         Executors.newSingleThreadExecutor().execute(() -> {
+            List<ActividadCurso> actividades = db.actividadCursoDao().obtenerTodasActividadesParaEstudiante(usuarioActual.id);
             List<Entrega> entregas = db.entregaDao().obtenerTodasEntregasEstudiante(usuarioActual.id);
-            List<Entrega> calificadas = new ArrayList<>();
+
+            Map<Integer, Entrega> mapaEntregas = new HashMap<>();
             for (Entrega e : entregas) {
-                if (e.calificacion != null) calificadas.add(e);
+                mapaEntregas.put(e.actividadId, e);
             }
-
-            if (calificadas.isEmpty()) {
-                if (!isAdded()) return;
-                requireActivity().runOnUiThread(() ->
-                        Toast.makeText(requireContext(), "No tienes calificaciones registradas aún", Toast.LENGTH_SHORT).show()
-                );
-                return;
-            }
-
-            double sumaNotasPonderadas = 0;
-            double sumaPorcentajes = 0;
-
-            String[] items = new String[calificadas.size()];
-            for (int i = 0; i < calificadas.size(); i++) {
-                Entrega ent = calificadas.get(i);
-                ActividadCurso act = db.actividadCursoDao().obtenerPorId(ent.actividadId);
-                int porcentaje = act != null ? act.porcentaje : 20;
-                sumaNotasPonderadas += (ent.calificacion * porcentaje);
-                sumaPorcentajes += porcentaje;
-
-                items[i] = ent.tituloTarea + " — Nota: " + ent.calificacion + " / 5.0 (" + porcentaje + "%)" + (ent.estadoRevision != null ? " [Revisión: " + ent.estadoRevision + "]" : "");
-            }
-
-            double promedioPonderado = sumaPorcentajes > 0 ? (sumaNotasPonderadas / sumaPorcentajes) : 0;
 
             if (!isAdded()) return;
             requireActivity().runOnUiThread(() -> {
+                if (actividades.isEmpty()) {
+                    Toast.makeText(requireContext(), "No tienes actividades registradas en tus cursos", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                double sumaNotasPonderadas = 0;
+                double sumaPorcentajes = 0;
+
+                String[] items = new String[actividades.size()];
+                for (int i = 0; i < actividades.size(); i++) {
+                    ActividadCurso act = actividades.get(i);
+                    Entrega ent = mapaEntregas.get(act.id);
+
+                    if (ent != null && ent.calificacion != null) {
+                        sumaNotasPonderadas += (ent.calificacion * act.porcentaje);
+                        sumaPorcentajes += act.porcentaje;
+                        String estadoRev = ent.estadoRevision != null ? " [Revisión: " + ent.estadoRevision + "]" : "";
+                        items[i] = act.titulo + " — Nota: " + ent.calificacion + " / 5.0 (" + act.porcentaje + "%)" + estadoRev;
+                    } else {
+                        items[i] = act.titulo + " — Estado: Pendiente de Calificación (" + act.porcentaje + "%)";
+                    }
+                }
+
+                double promedioPonderado = sumaPorcentajes > 0 ? (sumaNotasPonderadas / sumaPorcentajes) : 0.0;
+
                 new AlertDialog.Builder(requireContext())
-                        .setTitle("HU-15: Mis Calificaciones (Promedio: " + String.format(Locale.getDefault(), "%.2f", promedioPonderado) + " / 5.0)")
+                        .setTitle("Mis Calificaciones (Promedio: " + String.format(Locale.getDefault(), "%.2f", promedioPonderado) + " / 5.0)")
                         .setItems(items, (d, which) -> {
-                            Entrega seleccionada = calificadas.get(which);
-                            mostrarDetalleCalificacionYRevision(seleccionada);
+                            ActividadCurso actSel = actividades.get(which);
+                            Entrega entSel = mapaEntregas.get(actSel.id);
+                            if (entSel != null && entSel.calificacion != null) {
+                                mostrarDetalleCalificacionYRevision(entSel);
+                            } else {
+                                Toast.makeText(requireContext(), "Esta actividad está pendiente de calificación por parte del docente.", Toast.LENGTH_LONG).show();
+                            }
                         })
                         .setPositiveButton("Cerrar", null)
                         .show();
@@ -512,9 +551,10 @@ public class InicioFragment extends Fragment {
             m.fechaMatricula = System.currentTimeMillis();
             db.matriculaDao().matricular(m);
 
-            requireActivity().runOnUiThread(() ->
-                    Toast.makeText(requireContext(), "¡Te has matriculado exitosamente en " + nombreCurso + "!", Toast.LENGTH_LONG).show()
-            );
+            requireActivity().runOnUiThread(() -> {
+                Toast.makeText(requireContext(), "¡Te has matriculado exitosamente en " + nombreCurso + "!", Toast.LENGTH_LONG).show();
+                cargarCursosParaFiltro();
+            });
         });
     }
 
@@ -568,7 +608,7 @@ public class InicioFragment extends Fragment {
                             realizarEntrega(actElegida.id, cursoId, actElegida.titulo);
                         })
                         .show();
-                });
+            });
         });
     }
 
