@@ -49,6 +49,28 @@
             android:textColor="#1976D2"
             android:layout_marginBottom="8dp"/>
 
+        <!-- HU-17: Filtros de Calendario -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Spinner
+                android:id="@+id/spinnerFiltroCurso"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"/>
+
+            <CheckBox
+                android:id="@+id/chkOcultarEntregadas"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ocultar entregadas"
+                android:textSize="12sp"/>
+        </LinearLayout>
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerInicioCursos"
             android:layout_width="match_parent"

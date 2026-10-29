@@ -23,6 +23,9 @@ public interface UsuarioDao {
     @Query("UPDATE usuarios SET telefono = :telefono, fotoUri = :fotoUri, fechaActualizacion = :fecha WHERE id = :id")
     int actualizarPerfil(int id, String telefono, String fotoUri, long fecha);
 
+    @Query("UPDATE usuarios SET notifNuevoMaterial = :notifNuevoMaterial, notifNuevaActividad = :notifNuevaActividad, notifEntrega48h = :notifEntrega48h, notifNotaPublicada = :notifNotaPublicada WHERE id = :id")
+    int actualizarPreferenciasNotificacion(int id, boolean notifNuevoMaterial, boolean notifNuevaActividad, boolean notifEntrega48h, boolean notifNotaPublicada);
+
     @Query("UPDATE usuarios SET passwordHash = :passwordHash, fechaActualizacion = :fecha WHERE id = :id")
     int actualizarPassword(int id, String passwordHash, long fecha);
 

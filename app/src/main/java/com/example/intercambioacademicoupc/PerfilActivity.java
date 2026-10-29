@@ -8,6 +8,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -54,7 +55,8 @@ public class PerfilActivity extends AppCompatActivity {
     private TextView tvNombre, tvDocumento, tvCodigo, tvPrograma, tvCorreo, tvUltimaActualizacion;
     private EditText etTelefono, etPasswordActual, etPasswordNueva, etPasswordConfirmar;
     private Button btnCambiarFoto, btnGuardarContacto, btnCambiarPassword, btnHistorial, btnCerrarSesion;
-    private Button btnAdminUsuarios, btnCrearCurso, btnMisCursos;
+    private Button btnAdminUsuarios, btnCrearCurso, btnMisCursos, btnGuardarNotificaciones;
+    private Switch switchNotifMaterial, switchNotifActividad, switchNotifEntrega48h, switchNotifNota;
 
     private AppDatabase db;
     private SessionManager sesion;
@@ -102,6 +104,7 @@ public class PerfilActivity extends AppCompatActivity {
         btnGuardarContacto.setOnClickListener(v -> guardarDatosDeContacto());
         btnCambiarPassword.setOnClickListener(v -> cambiarPassword());
         btnHistorial.setOnClickListener(v -> mostrarHistorial());
+        btnGuardarNotificaciones.setOnClickListener(v -> guardarPreferenciasNotificacion());
         btnAdminUsuarios.setOnClickListener(v ->
                 startActivity(new Intent(this, AdminUsuariosActivity.class)));
         btnCrearCurso.setOnClickListener(v ->
@@ -137,6 +140,12 @@ public class PerfilActivity extends AppCompatActivity {
         btnAdminUsuarios = findViewById(R.id.btnAdminUsuarios);
         btnCrearCurso = findViewById(R.id.btnCrearCurso);
         btnMisCursos = findViewById(R.id.btnMisCursos);
+        btnGuardarNotificaciones = findViewById(R.id.btnGuardarNotificaciones);
+
+        switchNotifMaterial = findViewById(R.id.switchNotifMaterial);
+        switchNotifActividad = findViewById(R.id.switchNotifActividad);
+        switchNotifEntrega48h = findViewById(R.id.switchNotifEntrega48h);
+        switchNotifNota = findViewById(R.id.switchNotifNota);
     }
 
     // ------------------------------------------------------------------
@@ -184,6 +193,29 @@ public class PerfilActivity extends AppCompatActivity {
         btnAdminUsuarios.setVisibility("administrador".equals(u.rol) ? View.VISIBLE : View.GONE);
         btnCrearCurso.setVisibility("docente".equals(u.rol) ? View.VISIBLE : View.GONE);
         btnMisCursos.setVisibility("estudiante".equals(u.rol) ? View.VISIBLE : View.GONE);
+
+        switchNotifMaterial.setChecked(u.notifNuevoMaterial);
+        switchNotifActividad.setChecked(u.notifNuevaActividad);
+        switchNotifEntrega48h.setChecked(u.notifEntrega48h);
+        switchNotifNota.setChecked(u.notifNotaPublicada);
+    }
+
+    private void guardarPreferenciasNotificacion() {
+        if (usuarioActual == null) return;
+        boolean m = switchNotifMaterial.isChecked();
+        boolean a = switchNotifActividad.isChecked();
+        boolean e48 = switchNotifEntrega48h.isChecked();
+        boolean n = switchNotifNota.isChecked();
+
+        final int id = usuarioActual.id;
+        executor.execute(() -> {
+            db.usuarioDao().actualizarPreferenciasNotificacion(id, m, a, e48, n);
+            Usuario actualizado = db.usuarioDao().buscarPorId(id);
+            runOnUiThread(() -> {
+                usuarioActual = actualizado;
+                Toast.makeText(this, "Preferencias de notificación actualizadas", Toast.LENGTH_SHORT).show();
+            });
+        });
     }
 
     /** Muestra los cursos en los que está matriculado el estudiante y abre sus materiales. */

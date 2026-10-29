@@ -30,6 +30,12 @@ public class Usuario {
     // --- HU-05: Creación de roles ---
     public boolean activo = true;
 
+    // --- HU-18: Preferencias de Notificaciones ---
+    public boolean notifNuevoMaterial = true;
+    public boolean notifNuevaActividad = true;
+    public boolean notifEntrega48h = true;
+    public boolean notifNotaPublicada = true;
+
     /** Fecha (epoch millis) del último cambio hecho al perfil. 0 = nunca se ha editado. */
     @ColumnInfo(defaultValue = "0")
     public long fechaActualizacion;

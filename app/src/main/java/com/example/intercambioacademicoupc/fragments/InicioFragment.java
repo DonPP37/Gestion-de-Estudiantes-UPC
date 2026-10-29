@@ -6,9 +6,13 @@ import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CalendarView;
+import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,6 +45,11 @@ public class InicioFragment extends Fragment {
 
     private TextView tvBienvenidaInicio, tvRolInfo, tvTituloActividadesFecha;
     private CalendarView calendarView;
+    private Spinner spinnerFiltroCurso;
+    private CheckBox chkOcultarEntregadas;
+    private List<Curso> cursosList = new ArrayList<>();
+    private int cursoFiltroIdSeleccionado = -1;
+
     private Button btnAccionRol, btnBuscarInscribirCurso, btnEntregarTarea, btnMisActividades, btnMisCalificaciones, btnDocentePublicar;
     private RecyclerView recyclerInicioCursos;
     private AppDatabase db;
@@ -56,6 +65,9 @@ public class InicioFragment extends Fragment {
         tvRolInfo = view.findViewById(R.id.tvRolInfo);
         tvTituloActividadesFecha = view.findViewById(R.id.tvTituloActividadesFecha);
         calendarView = view.findViewById(R.id.calendarView);
+        spinnerFiltroCurso = view.findViewById(R.id.spinnerFiltroCurso);
+        chkOcultarEntregadas = view.findViewById(R.id.chkOcultarEntregadas);
+
         btnAccionRol = view.findViewById(R.id.btnAccionRol);
         btnBuscarInscribirCurso = view.findViewById(R.id.btnBuscarInscribirCurso);
         btnEntregarTarea = view.findViewById(R.id.btnEntregarTarea);
@@ -68,6 +80,11 @@ public class InicioFragment extends Fragment {
 
         db = AppDatabase.getDatabase(requireContext());
         sessionManager = new SessionManager(requireContext());
+
+        chkOcultarEntregadas.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            Calendar cal = Calendar.getInstance();
+            cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
+        });
 
         Calendar cal = Calendar.getInstance();
         cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
@@ -97,9 +114,79 @@ public class InicioFragment extends Fragment {
             if (usuarioActual != null && isAdded()) {
                 requireActivity().runOnUiThread(() -> {
                     updateUIByRole().run();
+                    cargarCursosParaFiltro();
                     Calendar cal = Calendar.getInstance();
                     cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
+                    verificarNotificaciones48h();
                 });
+            }
+        });
+    }
+
+    private void cargarCursosParaFiltro() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<Curso> cursos;
+            if ("docente".equals(usuarioActual.rol)) {
+                cursos = db.cursoDao().obtenerCursosPorDocente(usuarioActual.id);
+            } else {
+                cursos = db.matriculaDao().obtenerCursosMatriculados(usuarioActual.id);
+            }
+            cursosList = cursos;
+            List<String> nombresCursos = new ArrayList<>();
+            nombresCursos.add("Todos los cursos");
+            for (Curso c : cursos) {
+                nombresCursos.add(c.codigo + " - " + c.nombre);
+            }
+
+            if (isAdded()) {
+                requireActivity().runOnUiThread(() -> {
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                            requireContext(), android.R.layout.simple_spinner_item, nombresCursos);
+                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                    spinnerFiltroCurso.setAdapter(adapter);
+                    spinnerFiltroCurso.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                            if (position == 0) {
+                                cursoFiltroIdSeleccionado = -1;
+                            } else {
+                                cursoFiltroIdSeleccionado = cursosList.get(position - 1).id;
+                            }
+                            Calendar cal = Calendar.getInstance();
+                            cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
+                        }
+
+                        @Override
+                        public void onNothingSelected(AdapterView<?> parent) {
+                            cursoFiltroIdSeleccionado = -1;
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    private void verificarNotificaciones48h() {
+        if (usuarioActual == null || !"estudiante".equals(usuarioActual.rol)) return;
+        if (!usuarioActual.notifEntrega48h) return;
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            long ahora = System.currentTimeMillis();
+            long limite48h = ahora + (48L * 60 * 60 * 1000);
+            List<ActividadCurso> actividades = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioActual.id, ahora);
+            for (ActividadCurso act : actividades) {
+                if (act.fechaCierre > ahora && act.fechaCierre <= limite48h) {
+                    Entrega entrega = db.entregaDao().obtenerEntregaPorActividadYEstudiante(act.id, usuarioActual.id);
+                    if (entrega == null) {
+                        com.example.intercambioacademicoupc.utils.NotificacionHelper.mostrarNotificacion(
+                                requireContext(),
+                                "⚠️ Entrega próxima a vencer (48h)",
+                                "La actividad '" + act.titulo + "' vence pronto. ¡No olvides entregarla!",
+                                act.id
+                        );
+                        break;
+                    }
+                }
             }
         });
     }
@@ -167,18 +254,32 @@ public class InicioFragment extends Fragment {
                 todas = db.actividadCursoDao().obtenerTodasActividadesParaEstudiante(usuarioActual.id);
             }
 
+            boolean ocultarEntregadas = chkOcultarEntregadas != null && chkOcultarEntregadas.isChecked();
+
             List<ActividadCurso> filtradas = new ArrayList<>();
             Calendar calTarget = Calendar.getInstance();
 
             for (ActividadCurso act : todas) {
+                if (cursoFiltroIdSeleccionado != -1 && act.cursoId != cursoFiltroIdSeleccionado) {
+                    continue;
+                }
+
                 calTarget.setTimeInMillis(act.fechaCierre);
                 int y = calTarget.get(Calendar.YEAR);
                 int m = calTarget.get(Calendar.MONTH);
                 int d = calTarget.get(Calendar.DAY_OF_MONTH);
 
                 if (y == year && m == month && d == dayOfMonth) {
-                    if ("estudiante".equals(rol) && (!act.visible || act.fechaApertura > System.currentTimeMillis())) {
-                        continue;
+                    if ("estudiante".equals(rol)) {
+                        if (!act.visible || act.fechaApertura > System.currentTimeMillis()) {
+                            continue;
+                        }
+                        if (ocultarEntregadas) {
+                            Entrega entrega = db.entregaDao().obtenerEntregaPorActividadYEstudiante(act.id, usuarioActual.id);
+                            if (entrega != null) {
+                                continue;
+                            }
+                        }
                     }
                     filtradas.add(act);
                 }

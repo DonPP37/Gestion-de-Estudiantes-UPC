@@ -159,6 +159,54 @@
             android:layout_marginTop="12dp"
             android:text="Actualizar contraseña" />
 
+        <!-- ===== PREFERENCIAS DE NOTIFICACIÓN (HU-18) ===== -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="Preferencias de notificación"
+            android:textStyle="bold"
+            android:textSize="18sp" />
+
+        <Switch
+            android:id="@+id/switchNotifMaterial"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Nuevo material publicado"
+            android:checked="true" />
+
+        <Switch
+            android:id="@+id/switchNotifActividad"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Nueva actividad asignada"
+            android:checked="true" />
+
+        <Switch
+            android:id="@+id/switchNotifEntrega48h"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Recordatorio de entrega (48h)"
+            android:checked="true" />
+
+        <Switch
+            android:id="@+id/switchNotifNota"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Calificación / Nota publicada"
+            android:checked="true" />
+
+        <Button
+            android:id="@+id/btnGuardarNotificaciones"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Guardar preferencias de notificación" />
+
         <!-- ===== TRAZABILIDAD ===== -->
         <TextView
             android:id="@+id/tvUltimaActualizacion"
