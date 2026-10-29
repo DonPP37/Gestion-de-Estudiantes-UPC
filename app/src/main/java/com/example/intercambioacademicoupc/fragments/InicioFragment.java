@@ -460,7 +460,7 @@ public class InicioFragment extends Fragment {
     private void mostrarDialogoMisActividades() {
         Executors.newSingleThreadExecutor().execute(() -> {
             long ahora = System.currentTimeMillis();
-            List<ActividadCurso> actividades = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioActual.id, ahora);
+            List<ActividadCurso> actividades = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioActual.id);
             if (!isAdded()) return;
             requireActivity().runOnUiThread(() -> {
                 if (actividades.isEmpty()) {
@@ -581,7 +581,7 @@ public class InicioFragment extends Fragment {
     private void mostrarDialogoActividadesParaEntrega(int cursoId) {
         Executors.newSingleThreadExecutor().execute(() -> {
             long ahora = System.currentTimeMillis();
-            List<ActividadCurso> actividades = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioActual.id, ahora);
+            List<ActividadCurso> actividades = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioActual.id);
             List<ActividadCurso> actividadesCurso = new ArrayList<>();
             for (ActividadCurso act : actividades) {
                 if (act.cursoId == cursoId) actividadesCurso.add(act);

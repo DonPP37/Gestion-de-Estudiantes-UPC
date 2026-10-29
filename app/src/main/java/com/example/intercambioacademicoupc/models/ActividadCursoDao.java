@@ -26,8 +26,8 @@ public interface ActividadCursoDao {
     @Query("SELECT SUM(porcentaje) FROM actividades_curso WHERE cursoId = :cursoId")
     Integer obtenerSumaPorcentajes(int cursoId);
 
-    @Query("SELECT a.* FROM actividades_curso a INNER JOIN matriculas m ON a.cursoId = m.cursoId WHERE m.estudianteId = :estudianteId AND a.visible = 1 AND a.fechaApertura <= :ahora AND a.fechaCierre >= :ahora ORDER BY a.fechaCierre ASC")
-    List<ActividadCurso> obtenerActividadesParaEstudiante(int estudianteId, long ahora);
+    @Query("SELECT a.* FROM actividades_curso a INNER JOIN matriculas m ON a.cursoId = m.cursoId WHERE m.estudianteId = :estudianteId AND a.visible = 1 ORDER BY a.fechaCierre ASC")
+    List<ActividadCurso> obtenerActividadesParaEstudiante(int estudianteId);
 
     @Query("SELECT a.* FROM actividades_curso a INNER JOIN matriculas m ON a.cursoId = m.cursoId WHERE m.estudianteId = :estudianteId")
     List<ActividadCurso> obtenerTodasActividadesParaEstudiante(int estudianteId);

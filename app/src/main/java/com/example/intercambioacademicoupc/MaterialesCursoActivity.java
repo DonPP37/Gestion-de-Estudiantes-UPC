@@ -324,15 +324,15 @@ public class MaterialesCursoActivity extends AppCompatActivity {
     private void cargarActividades() {
         Executors.newSingleThreadExecutor().execute(() -> {
             long ahora = System.currentTimeMillis();
-            List<ActividadCurso> actividades;
-            if (esInstructor) {
-                actividades = db.actividadCursoDao().obtenerActividadesPorCurso(cursoId);
-            } else {
-                List<ActividadCurso> todasEstudiante = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioId, ahora);
-                actividades = new ArrayList<>();
-                for (ActividadCurso act : todasEstudiante) {
-                    if (act.cursoId == cursoId) actividades.add(act);
+            List<ActividadCurso> actividades = db.actividadCursoDao().obtenerActividadesPorCurso(cursoId);
+            if (!esInstructor) {
+                List<ActividadCurso> visibles = new ArrayList<>();
+                for (ActividadCurso act : actividades) {
+                    if (act.visible && (act.fechaApertura <= ahora || act.fechaApertura == 0)) {
+                        visibles.add(act);
+                    }
                 }
+                actividades = visibles;
             }
 
             final List<ActividadCurso> finalActividades = actividades;
@@ -352,7 +352,8 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                         TextView tv2 = holder.itemView.findViewById(android.R.id.text2);
                         String estadoVisibilidad = esInstructor ? (act.visible ? " [Visible]" : " [Oculta]") : "";
                         tv1.setText(act.titulo + " (" + act.porcentaje + "%)" + estadoVisibilidad);
-                        tv2.setText("Abre: " + sdfFechaHora.format(new Date(act.fechaApertura)) + " | Cierra: " + sdfFechaHora.format(new Date(act.fechaCierre)));
+                        String fechaCierreStr = act.fechaCierre > 0 ? sdfFechaHora.format(new Date(act.fechaCierre)) : "Sin fecha límite";
+                        tv2.setText("Instrucciones: " + act.instrucciones + " | Cierra: " + fechaCierreStr);
 
                         holder.itemView.setOnClickListener(v -> {
                             if (esInstructor) {
@@ -581,7 +582,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
     private void mostrarDialogoEntregarTareaEstudiante() {
         Executors.newSingleThreadExecutor().execute(() -> {
             long ahora = System.currentTimeMillis();
-            List<ActividadCurso> todas = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioId, ahora);
+            List<ActividadCurso> todas = db.actividadCursoDao().obtenerActividadesParaEstudiante(usuarioId);
             List<ActividadCurso> delCurso = new ArrayList<>();
             for (ActividadCurso act : todas) {
                 if (act.cursoId == cursoId) delCurso.add(act);
