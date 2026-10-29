@@ -64,8 +64,8 @@
             android:layout_weight="1"
             android:text="Materiales"
             android:backgroundTint="#1976D2"
-            android:textSize="13sp"
-            android:layout_marginEnd="2dp"/>
+            android:textSize="11sp"
+            android:layout_marginEnd="1dp"/>
 
         <Button
             android:id="@+id/btnTabActividades"
@@ -74,8 +74,18 @@
             android:layout_weight="1"
             android:text="Actividades"
             android:backgroundTint="#757575"
-            android:textSize="13sp"
-            android:layout_marginHorizontal="2dp"/>
+            android:textSize="11sp"
+            android:layout_marginHorizontal="1dp"/>
+
+        <Button
+            android:id="@+id/btnTabNotas"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Calificaciones"
+            android:backgroundTint="#757575"
+            android:textSize="11sp"
+            android:layout_marginHorizontal="1dp"/>
 
         <Button
             android:id="@+id/btnTabConfig"
@@ -84,8 +94,8 @@
             android:layout_weight="1"
             android:text="Gestión"
             android:backgroundTint="#757575"
-            android:textSize="13sp"
-            android:layout_marginStart="2dp"
+            android:textSize="11sp"
+            android:layout_marginStart="1dp"
             android:visibility="gone"/>
     </LinearLayout>
 

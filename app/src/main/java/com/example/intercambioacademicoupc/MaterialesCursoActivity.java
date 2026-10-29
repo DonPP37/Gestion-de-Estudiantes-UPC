@@ -5,6 +5,7 @@ import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
@@ -52,7 +53,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
     private TextView tvCursoNombre, tvCursoCodigoPeriodo, tvCursoDescripcion;
     private RecyclerView recyclerEspacioCurso;
-    private Button btnTabMateriales, btnTabActividades, btnTabConfig, btnAccionEspacioCurso;
+    private Button btnTabMateriales, btnTabActividades, btnTabNotas, btnTabConfig, btnAccionEspacioCurso;
 
     private AppDatabase db;
     private SessionManager sessionManager;
@@ -61,88 +62,13 @@ public class MaterialesCursoActivity extends AppCompatActivity {
     private String rolUsuario;
     private Curso cursoActual;
     private boolean esInstructor = false;
-    private int pestanaActual = 0; // 0 = Materiales, 1 = Actividades, 2 = Gestión
+    private int pestanaActual = 0; // 0 = Materiales, 1 = Actividades, 2 = Config, 3 = Calificaciones
 
     private String archivoUriSeleccionado = null;
     private String nombreArchivoSeleccionado = "Documento.pdf";
     private String tamanoCalculado = "2.0 MB";
 
     private final SimpleDateFormat sdfFechaHora = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
-
-    // HU-13: Soporte para entrega de múltiples archivos (PDF, DOCX, ZIP) hasta 50 MB
-    private final List<String> entregaUrisSeleccionados = new ArrayList<>();
-    private final List<String> entregaNombresSeleccionados = new ArrayList<>();
-    private long entregaTamanoTotalBytes = 0;
-    private TextView tvArchivosEntregaSeleccionados = null;
-
-    private final ActivityResultLauncher<String[]> selectorArchivosEntrega =
-            registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(), uris -> {
-                if (uris == null || uris.isEmpty()) return;
-                long nuevoTamanoTotal = entregaTamanoTotalBytes;
-                List<String> nuevosUris = new ArrayList<>();
-                List<String> nuevosNombres = new ArrayList<>();
-
-                for (Uri uri : uris) {
-                    try {
-                        getContentResolver().takePersistableUriPermission(
-                                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    } catch (SecurityException ignored) {}
-
-                    String fileName = "archivo";
-                    long fileSize = 0;
-                    try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
-                        if (cursor != null && cursor.moveToFirst()) {
-                            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                            int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
-                            if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
-                                fileName = cursor.getString(nameIndex);
-                            }
-                            if (sizeIndex != -1 && !cursor.isNull(sizeIndex)) {
-                                fileSize = cursor.getLong(sizeIndex);
-                            }
-                        }
-                    } catch (Exception ignored) {}
-
-                    // HU-13: Validar extensiones PDF, DOCX, DOC, ZIP
-                    String nameLower = fileName.toLowerCase();
-                    if (!nameLower.endsWith(".pdf") && !nameLower.endsWith(".docx") && !nameLower.endsWith(".doc") && !nameLower.endsWith(".zip")) {
-                        Toast.makeText(this, "Formato no permitido (" + fileName + "). Solo se permiten archivos PDF, DOCX y ZIP.", Toast.LENGTH_LONG).show();
-                        continue;
-                    }
-
-                    if (nuevoTamanoTotal + fileSize > 50L * 1024 * 1024) {
-                        Toast.makeText(this, "El archivo " + fileName + " supera el límite de 50 MB en total.", Toast.LENGTH_LONG).show();
-                        continue;
-                    }
-
-                    nuevoTamanoTotal += fileSize;
-                    nuevosUris.add(uri.toString());
-                    nuevosNombres.add(fileName + " (" + String.format(Locale.getDefault(), "%.1f MB", (double) fileSize / (1024 * 1024)) + ")");
-                }
-
-                entregaUrisSeleccionados.addAll(nuevosUris);
-                entregaNombresSeleccionados.addAll(nuevosNombres);
-                entregaTamanoTotalBytes = nuevoTamanoTotal;
-
-                if (tvArchivosEntregaSeleccionados != null) {
-                    actualizarTextoArchivosEntrega();
-                }
-            });
-
-    private void actualizarTextoArchivosEntrega() {
-        if (entregaUrisSeleccionados.isEmpty()) {
-            tvArchivosEntregaSeleccionados.setText("No hay archivos seleccionados");
-        } else {
-            StringBuilder sb = new StringBuilder();
-            sb.append("📎 Archivos seleccionados (").append(entregaUrisSeleccionados.size()).append(") - Total: ")
-                    .append(String.format(Locale.getDefault(), "%.2f MB", (double) entregaTamanoTotalBytes / (1024 * 1024)))
-                    .append(" / 50 MB:\n");
-            for (String n : entregaNombresSeleccionados) {
-                sb.append("• ").append(n).append("\n");
-            }
-            tvArchivosEntregaSeleccionados.setText(sb.toString().trim());
-        }
-    }
 
     private final ActivityResultLauncher<String[]> selectorArchivo =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
@@ -191,6 +117,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
         btnTabMateriales = findViewById(R.id.btnTabMateriales);
         btnTabActividades = findViewById(R.id.btnTabActividades);
+        btnTabNotas = findViewById(R.id.btnTabNotas);
         btnTabConfig = findViewById(R.id.btnTabConfig);
         btnAccionEspacioCurso = findViewById(R.id.btnAccionEspacioCurso);
 
@@ -213,6 +140,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
         btnTabMateriales.setOnClickListener(v -> cambiarPestaña(0));
         btnTabActividades.setOnClickListener(v -> cambiarPestaña(1));
+        btnTabNotas.setOnClickListener(v -> cambiarPestaña(3));
         btnTabConfig.setOnClickListener(v -> cambiarPestaña(2));
 
         btnAccionEspacioCurso.setOnClickListener(v -> manejarAccionPestaña());
@@ -256,6 +184,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
         pestanaActual = pestana;
         btnTabMateriales.setBackgroundColor(Color.parseColor(pestanaActual == 0 ? "#1976D2" : "#757575"));
         btnTabActividades.setBackgroundColor(Color.parseColor(pestanaActual == 1 ? "#1976D2" : "#757575"));
+        btnTabNotas.setBackgroundColor(Color.parseColor(pestanaActual == 3 ? "#1976D2" : "#757575"));
         btnTabConfig.setBackgroundColor(Color.parseColor(pestanaActual == 2 ? "#1976D2" : "#757575"));
         actualizarVistaPestaña();
     }
@@ -281,6 +210,9 @@ public class MaterialesCursoActivity extends AppCompatActivity {
         } else if (pestanaActual == 2) {
             btnAccionEspacioCurso.setVisibility(View.GONE);
             cargarOpcionesGestion();
+        } else if (pestanaActual == 3) {
+            btnAccionEspacioCurso.setVisibility(View.GONE);
+            cargarCalificacionesCurso();
         }
     }
 
@@ -373,10 +305,150 @@ public class MaterialesCursoActivity extends AppCompatActivity {
         });
     }
 
+    private void cargarCalificacionesCurso() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<ActividadCurso> actividades = db.actividadCursoDao().obtenerActividadesPorCurso(cursoId);
+            List<Entrega> entregasEstudiante = db.entregaDao().obtenerEntregasPorEstudianteYCurso(usuarioId, cursoId);
+
+            Map<Integer, Entrega> mapaEntregas = new HashMap<>();
+            for (Entrega e : entregasEstudiante) {
+                mapaEntregas.put(e.actividadId, e);
+            }
+
+            double sumaNotasPonderadas = 0;
+            double sumaPorcentajes = 0;
+
+            List<String> itemsTitulo = new ArrayList<>();
+            List<String> itemsDetalle = new ArrayList<>();
+            List<Entrega> itemsEntregaObj = new ArrayList<>();
+
+            for (ActividadCurso act : actividades) {
+                Entrega ent = mapaEntregas.get(act.id);
+                if (ent != null && ent.calificacion != null) {
+                    sumaNotasPonderadas += (ent.calificacion * act.porcentaje);
+                    sumaPorcentajes += act.porcentaje;
+
+                    String feedbackStr = (ent.retroalimentacion != null && !ent.retroalimentacion.isEmpty()) ? (" | Feedback: " + ent.retroalimentacion) : "";
+                    String estadoRev = ent.estadoRevision != null ? " [" + ent.estadoRevision + "]" : "";
+
+                    itemsTitulo.add("📘 " + act.titulo + " (" + act.porcentaje + "%)");
+                    itemsDetalle.add("Nota: " + ent.calificacion + " / 5.0" + feedbackStr + estadoRev);
+                    itemsEntregaObj.add(ent);
+                } else {
+                    // Criterio: Si una actividad aún no ha sido calificada se muestra como "pendiente"
+                    itemsTitulo.add("📘 " + act.titulo + " (" + act.porcentaje + "%)");
+                    itemsDetalle.add("Estado: pendiente");
+                    itemsEntregaObj.add(null);
+                }
+            }
+
+            double promedioPonderado = sumaPorcentajes > 0 ? (sumaNotasPonderadas / sumaPorcentajes) : 0.0;
+            String promedioHeader = "Promedio Ponderado del Curso: " + String.format(Locale.getDefault(), "%.2f", promedioPonderado) + " / 5.0";
+
+            runOnUiThread(() -> {
+                recyclerEspacioCurso.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+                    @NonNull
+                    @Override
+                    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                        View v = getLayoutInflater().inflate(android.R.layout.simple_list_item_2, parent, false);
+                        return new RecyclerView.ViewHolder(v) {};
+                    }
+
+                    @Override
+                    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+                        TextView tv1 = holder.itemView.findViewById(android.R.id.text1);
+                        TextView tv2 = holder.itemView.findViewById(android.R.id.text2);
+
+                        if (position == 0) {
+                            tv1.setText("📊 PROMEDIO PONDERADO DEL CURSO");
+                            tv1.setTextColor(Color.parseColor("#1976D2"));
+                            tv2.setText(promedioHeader);
+                            tv2.setTypeface(null, Typeface.BOLD);
+                            holder.itemView.setOnClickListener(null);
+                        } else {
+                            int idx = position - 1;
+                            tv1.setText(itemsTitulo.get(idx));
+                            tv1.setTextColor(Color.BLACK);
+                            tv2.setText(itemsDetalle.get(idx));
+                            tv2.setTypeface(null, Typeface.NORMAL);
+
+                            Entrega ent = itemsEntregaObj.get(idx);
+                            holder.itemView.setOnClickListener(v -> {
+                                if (ent != null && ent.calificacion != null) {
+                                    mostrarDetalleCalificacionYRevisionCurso(ent);
+                                } else {
+                                    Toast.makeText(MaterialesCursoActivity.this, "Esta actividad está pendiente de calificación por parte del docente.", Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        }
+                    }
+
+                    @Override
+                    public int getItemCount() {
+                        return itemsTitulo.size() + 1;
+                    }
+                });
+            });
+        });
+    }
+
+    private void mostrarDetalleCalificacionYRevisionCurso(Entrega entrega) {
+        String retro = entrega.retroalimentacion != null ? entrega.retroalimentacion : "Sin comentarios";
+        String estadoRev = entrega.estadoRevision != null ? "\nEstado de revisión: " + entrega.estadoRevision : "";
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle("Calificación: " + entrega.tituloTarea)
+                .setMessage("Nota obtenida: " + entrega.calificacion + " / 5.0" +
+                        "\nRetroalimentación:\n" + retro +
+                        estadoRev);
+
+        long cincoDiasMs = 5L * 24 * 60 * 60 * 1000;
+        boolean dentroDe5Dias = (System.currentTimeMillis() - entrega.fechaCalificacion) <= cincoDiasMs;
+
+        if (dentroDe5Dias && (entrega.estadoRevision == null || entrega.estadoRevision.isEmpty())) {
+            builder.setNeutralButton("Solicitar Revisión (HU-16)", (d, w) -> {
+                mostrarDialogoMotivoRevisionCurso(entrega);
+            });
+        }
+
+        builder.setPositiveButton("Cerrar", null).show();
+    }
+
+    private void mostrarDialogoMotivoRevisionCurso(Entrega entrega) {
+        EditText input = new EditText(this);
+        input.setHint("Explique detalladamente el motivo de la revisión (Mínimo 100 caracteres)...");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Solicitud de Revisión (HU-16)")
+                .setView(input)
+                .setPositiveButton("Enviar Solicitud", (dialog, which) -> {
+                    String motivo = input.getText().toString().trim();
+                    if (motivo.length() < 100) {
+                        Toast.makeText(this, "El motivo debe tener al menos 100 caracteres (actuales: " + motivo.length() + ")", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        entrega.solicitudRevision = true;
+                        entrega.motivoRevision = motivo;
+                        entrega.estadoRevision = "en revisión";
+                        db.entregaDao().actualizarEntrega(entrega);
+
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Solicitud enviada al docente con éxito (Estado: En revisión)", Toast.LENGTH_LONG).show();
+                            if (pestanaActual == 3) cargarCalificacionesCurso();
+                        });
+                    });
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
     private void cargarOpcionesGestion() {
         List<String> opciones = new ArrayList<>();
         opciones.add("✏️ Editar información del curso");
         opciones.add("➕ Inscribir estudiante al curso");
+        opciones.add("📋 Ver y calificar entregas recibidas (HU-14)");
         opciones.add("🗑️ Eliminar este curso");
 
         runOnUiThread(() -> {
@@ -398,7 +470,12 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                     holder.itemView.setOnClickListener(v -> {
                         if (position == 0) mostrarDialogoEditarCurso();
                         else if (position == 1) mostrarDialogoBuscarEstudianteParaInscribir();
-                        else if (position == 2) confirmarEliminarCurso();
+                        else if (position == 2) {
+                            Intent intent = new Intent(MaterialesCursoActivity.this, CalificarEntregasActivity.class);
+                            intent.putExtra("CURSO_ID", cursoId);
+                            startActivity(intent);
+                        }
+                        else if (position == 3) confirmarEliminarCurso();
                     });
                 }
 
@@ -445,7 +522,6 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                     });
                 }
 
-                // HU-13: El sistema bloquea la entrega después de la fecha límite salvo que el docente habilite plazo extra
                 if (!vencida || act.aceptaFueraDePlazo) {
                     builder.setPositiveButton(btnTexto, (d, w) -> abrirFormularioEntregaHU13(act, entregaExistente));
                 } else {
@@ -466,23 +542,17 @@ public class MaterialesCursoActivity extends AppCompatActivity {
             return;
         }
 
-        entregaUrisSeleccionados.clear();
-        entregaNombresSeleccionados.clear();
-        entregaTamanoTotalBytes = 0;
+        List<String> entregaUrisSeleccionados = new ArrayList<>();
+        List<String> entregaNombresSeleccionados = new ArrayList<>();
+        long[] entregaTamanoTotalBytes = {0};
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        int p = 32;
+        int p = 36;
         layout.setPadding(p, p, p, p);
 
-        TextView tvAyuda = new TextView(this);
-        tvAyuda.setText("Puedes enviar texto explicativo y/o adjuntar uno o varios archivos (PDF, DOCX, ZIP) de hasta 50 MB en total.");
-        tvAyuda.setTextSize(13f);
-        tvAyuda.setTextColor(Color.parseColor("#555555"));
-        layout.addView(tvAyuda);
-
         final EditText etTexto = new EditText(this);
-        etTexto.setHint("Escribe tu respuesta, explicación o enlaces aquí...");
+        etTexto.setHint("Escribe tus comentarios o contenido de la entrega...");
         etTexto.setLines(3);
         if (entregaExistente != null && entregaExistente.descripcionEntrega != null) {
             etTexto.setText(entregaExistente.descripcionEntrega);
@@ -490,8 +560,8 @@ public class MaterialesCursoActivity extends AppCompatActivity {
         layout.addView(etTexto);
 
         Button btnAdjuntar = new Button(this);
-        btnAdjuntar.setText("📎 Adjuntar Archivos (PDF, DOCX, ZIP)");
-        btnAdjuntar.setOnClickListener(v -> selectorArchivosEntrega.launch(new String[]{
+        btnAdjuntar.setText("Adjuntar Archivos (PDF, DOCX, ZIP)");
+        btnAdjuntar.setOnClickListener(v -> selectorArchivo.launch(new String[]{
                 "application/pdf",
                 "application/msword",
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -500,15 +570,15 @@ public class MaterialesCursoActivity extends AppCompatActivity {
         }));
         layout.addView(btnAdjuntar);
 
-        tvArchivosEntregaSeleccionados = new TextView(this);
-        tvArchivosEntregaSeleccionados.setPadding(0, 12, 0, 12);
-        tvArchivosEntregaSeleccionados.setTextSize(12f);
+        TextView tvArchivos = new TextView(this);
+        tvArchivos.setPadding(0, 12, 0, 12);
+        tvArchivos.setTextSize(12f);
         if (entregaExistente != null && entregaExistente.nombresArchivos != null) {
-            tvArchivosEntregaSeleccionados.setText("Archivos en entrega previa: " + entregaExistente.nombresArchivos + "\n(Selecciona nuevos archivos para reemplazarlos)");
+            tvArchivos.setText("Archivos en entrega previa: " + entregaExistente.nombresArchivos);
         } else {
-            tvArchivosEntregaSeleccionados.setText("No hay archivos seleccionados");
+            tvArchivos.setText("No hay archivos seleccionados");
         }
-        layout.addView(tvArchivosEntregaSeleccionados);
+        layout.addView(tvArchivos);
 
         String accionBoton = entregaExistente != null ? "Confirmar Reemplazo" : "Enviar Entrega";
 
@@ -526,7 +596,6 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                     }
 
                     long fechaEnvio = System.currentTimeMillis();
-                    // Generar código de comprobante único formal
                     String codigoComprobante = "COMP-" + act.id + "-" + usuarioId + "-" + (fechaEnvio % 1000000);
 
                     Executors.newSingleThreadExecutor().execute(() -> {
@@ -543,7 +612,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                         if (tieneArchivos) {
                             e.archivoUrl = String.join(";", entregaUrisSeleccionados);
                             e.nombresArchivos = String.join(" | ", entregaNombresSeleccionados);
-                            e.tamanoTotalBytes = entregaTamanoTotalBytes;
+                            e.tamanoTotalBytes = entregaTamanoTotalBytes[0];
                         }
 
                         if (entregaExistente != null) {
@@ -553,13 +622,12 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                         }
 
                         runOnUiThread(() -> {
-                            // HU-13: Generar comprobante formal con fecha, hora y estado "entregada"
                             mostrarComprobanteEntrega(act.titulo, codigoComprobante, fechaEnvio);
-                            tvArchivosEntregaSeleccionados = null;
+                            if (pestanaActual == 3) cargarCalificacionesCurso();
                         });
                     });
                 })
-                .setNegativeButton("Cancelar", (dialog, which) -> tvArchivosEntregaSeleccionados = null)
+                .setNegativeButton("Cancelar", null)
                 .show();
     }
 
@@ -570,7 +638,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                 + "Código de Comprobante: " + codigoComprobante + "\n"
                 + "Fecha y Hora: " + fechaHoraStr + "\n"
                 + "Estado: entregada\n\n"
-                + "Este comprobante certifica la formalidad de tu entrega antes de la fecha límite.";
+                + "Guarda este comprobante como evidencia formal de tu entrega.";
 
         new AlertDialog.Builder(this)
                 .setTitle("Comprobante Formal de Entrega")
@@ -601,10 +669,11 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                         .setTitle("Seleccionar Actividad a Entregar")
                         .setItems(nombres, (d, which) -> {
                             ActividadCurso actElegida = delCurso.get(which);
-                            Executors.newSingleThreadExecutor().execute(() -> {
-                                Entrega prev = db.entregaDao().obtenerEntregaPorActividadYEstudiante(actElegida.id, usuarioId);
-                                runOnUiThread(() -> abrirFormularioEntregaHU13(actElegida, prev));
-                            });
+                            if (ahora > actElegida.fechaCierre && !actElegida.aceptaFueraDePlazo) {
+                                Toast.makeText(this, "Plazo vencido: No acepta entregas fuera de plazo.", Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                            mostrarDetalleActividadEstudiante(actElegida);
                         })
                         .show();
             });
@@ -841,22 +910,13 @@ public class MaterialesCursoActivity extends AppCompatActivity {
     }
 
     private void mostrarOpcionesActividad(ActividadCurso actividad) {
-        CharSequence[] opciones = {
-                "📋 Ver y calificar entregas recibidas (HU-14)",
-                "✏️ Editar / Adjuntar Archivo / Fechas / Visibilidad",
-                "🗑️ Eliminar Actividad"
-        };
+        CharSequence[] opciones = {"Editar / Adjuntar Archivo / Fechas / Visibilidad", "Eliminar Actividad"};
         new AlertDialog.Builder(this)
                 .setTitle("Acciones: " + actividad.titulo)
                 .setItems(opciones, (dialog, which) -> {
                     if (which == 0) {
-                        Intent intent = new Intent(this, CalificarEntregasActivity.class);
-                        intent.putExtra("ACTIVIDAD_ID", actividad.id);
-                        intent.putExtra("CURSO_ID", cursoId);
-                        startActivity(intent);
-                    } else if (which == 1) {
                         mostrarDialogoEditarActividad(actividad);
-                    } else if (which == 2) {
+                    } else if (which == 1) {
                         eliminarActividad(actividad);
                     }
                 })

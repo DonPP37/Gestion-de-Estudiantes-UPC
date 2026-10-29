@@ -9,6 +9,8 @@ import android.text.format.DateFormat;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -23,6 +25,7 @@ import com.example.intercambioacademicoupc.models.AppDatabase;
 import com.example.intercambioacademicoupc.models.Entrega;
 import com.example.intercambioacademicoupc.models.Usuario;
 import com.example.intercambioacademicoupc.session.SessionManager;
+import com.example.intercambioacademicoupc.utils.NotificacionHelper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -189,13 +192,28 @@ public class CalificarEntregasActivity extends AppCompatActivity {
 
         // HU-16: Si hay una solicitud de revisión de calificación
         final EditText etMotivoRevDocente = new EditText(this);
+        final RadioGroup rgDecisionRev = new RadioGroup(this);
+        final RadioButton rbAceptar = new RadioButton(this);
+        final RadioButton rbRechazar = new RadioButton(this);
+
         final boolean tieneSolicitudRevision = entrega.solicitudRevision || (entrega.motivoRevision != null && !entrega.motivoRevision.isEmpty());
         if (tieneSolicitudRevision) {
             TextView tvRev = new TextView(this);
-            tvRev.setText("\n⚠️ SOLICITUD DE REVISIÓN (HU-16):\nMotivo del estudiante: " + entrega.motivoRevision + "\nEstado: " + (entrega.estadoRevision != null ? entrega.estadoRevision : "en revisión"));
+            tvRev.setText("\n⚠️ SOLICITUD DE REVISIÓN RECIBIDA (HU-16):\nMotivo del estudiante: " + entrega.motivoRevision + "\nEstado actual: " + (entrega.estadoRevision != null ? entrega.estadoRevision : "en revisión"));
             tvRev.setTextColor(Color.parseColor("#D32F2F"));
             tvRev.setTextSize(13f);
             layout.addView(tvRev);
+
+            rbAceptar.setText("Aceptar Revisión");
+            rbAceptar.setId(View.generateViewId());
+            rbRechazar.setText("Rechazar Revisión");
+            rbRechazar.setId(View.generateViewId());
+            rbAceptar.setChecked(true);
+
+            rgDecisionRev.setOrientation(RadioGroup.HORIZONTAL);
+            rgDecisionRev.addView(rbAceptar);
+            rgDecisionRev.addView(rbRechazar);
+            layout.addView(rgDecisionRev);
 
             etMotivoRevDocente.setHint("Observación OBLIGATORIA para la revisión...");
             etMotivoRevDocente.setLines(2);
@@ -232,11 +250,20 @@ public class CalificarEntregasActivity extends AppCompatActivity {
                     if (tieneSolicitudRevision) {
                         String obsRev = etMotivoRevDocente.getText().toString().trim();
                         if (obsRev.isEmpty()) {
-                            Toast.makeText(this, "HU-16: Debe ingresar una observación obligatoria para responder la revisión", Toast.LENGTH_LONG).show();
+                            Toast.makeText(this, "HU-16: Para responder una revisión, la observación es OBLIGATORIA.", Toast.LENGTH_LONG).show();
                             return;
                         }
-                        entrega.estadoRevision = "aceptada";
-                        feedback = feedback + "\n[Respuesta a Revisión]: " + obsRev;
+
+                        boolean esAceptada = rgDecisionRev.getCheckedRadioButtonId() == rbAceptar.getId();
+                        entrega.estadoRevision = esAceptada ? "aceptada" : "rechazada";
+                        feedback = feedback + "\n[Respuesta a Revisión (" + entrega.estadoRevision + ")]: " + obsRev;
+
+                        NotificacionHelper.mostrarNotificacion(
+                                this,
+                                "Resultado de Revisión de Calificación",
+                                "Tu solicitud para '" + entrega.tituloTarea + "' fue " + entrega.estadoRevision + ".",
+                                entrega.id
+                        );
                     }
 
                     long ahora = System.currentTimeMillis();
