@@ -172,8 +172,10 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                 }
                 if (esInstructor) {
                     btnTabConfig.setVisibility(View.VISIBLE);
+                    btnTabNotas.setVisibility(View.GONE);
                 } else {
                     btnTabConfig.setVisibility(View.GONE);
+                    btnTabNotas.setVisibility(View.VISIBLE);
                 }
                 actualizarVistaPestaña();
             });
@@ -343,7 +345,8 @@ public class MaterialesCursoActivity extends AppCompatActivity {
             }
 
             double promedioPonderado = sumaPorcentajes > 0 ? (sumaNotasPonderadas / sumaPorcentajes) : 0.0;
-            String promedioHeader = "Promedio Ponderado del Curso: " + String.format(Locale.getDefault(), "%.2f", promedioPonderado) + " / 5.0";
+            String promedioHeader = "Promedio Ponderado: " + String.format(Locale.getDefault(), "%.2f", promedioPonderado) + " / 5.0"
+                    + " (Evaluado " + ((int) sumaPorcentajes) + "% del curso)";
 
             runOnUiThread(() -> {
                 recyclerEspacioCurso.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -910,13 +913,18 @@ public class MaterialesCursoActivity extends AppCompatActivity {
     }
 
     private void mostrarOpcionesActividad(ActividadCurso actividad) {
-        CharSequence[] opciones = {"Editar / Adjuntar Archivo / Fechas / Visibilidad", "Eliminar Actividad"};
+        CharSequence[] opciones = {"📋 Ver y calificar entregas de estudiantes", "✏️ Editar / Adjuntar Archivo / Fechas / Visibilidad", "🗑️ Eliminar Actividad"};
         new AlertDialog.Builder(this)
                 .setTitle("Acciones: " + actividad.titulo)
                 .setItems(opciones, (dialog, which) -> {
                     if (which == 0) {
-                        mostrarDialogoEditarActividad(actividad);
+                        Intent intent = new Intent(MaterialesCursoActivity.this, CalificarEntregasActivity.class);
+                        intent.putExtra("ACTIVIDAD_ID", actividad.id);
+                        intent.putExtra("CURSO_ID", cursoId);
+                        startActivity(intent);
                     } else if (which == 1) {
+                        mostrarDialogoEditarActividad(actividad);
+                    } else if (which == 2) {
                         eliminarActividad(actividad);
                     }
                 })
