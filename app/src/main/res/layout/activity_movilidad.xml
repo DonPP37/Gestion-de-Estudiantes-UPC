@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#F5F5F5">
+
+    <TextView
+        android:id="@+id/tvTituloMovilidad"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="✈️ Movilidad Académica e Intercambios"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#1976D2"
+        android:layout_marginBottom="12dp"/>
+
+    <!-- Pestañas de Movilidad -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="10dp">
+
+        <Button
+            android:id="@+id/btnTabConvocatorias"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Convocatorias"
+            android:backgroundTint="#1976D2"
+            android:textSize="11sp"
+            android:layout_marginEnd="2dp"/>
+
+        <Button
+            android:id="@+id/btnTabHistorial"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Historial Cerradas"
+            android:backgroundTint="#757575"
+            android:textSize="11sp"
+            android:layout_marginHorizontal="2dp"/>
+
+        <Button
+            android:id="@+id/btnTabMisPostulaciones"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Mis Postulaciones"
+            android:backgroundTint="#757575"
+            android:textSize="11sp"
+            android:layout_marginStart="2dp"/>
+    </LinearLayout>
+
+    <!-- Barra de Filtros (HU-19: País, Idioma, Periodo) -->
+    <LinearLayout
+        android:id="@+id/layoutFiltrosMovilidad"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="10dp">
+
+        <EditText
+            android:id="@+id/etFiltroPais"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:hint="País"
+            android:textSize="12sp"
+            android:layout_marginEnd="4dp"/>
+
+        <EditText
+            android:id="@+id/etFiltroIdioma"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:hint="Idioma"
+            android:textSize="12sp"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/btnFiltrarConvocatorias"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Filtrar"
+            android:textSize="12sp"/>
+    </LinearLayout>
+
+    <!-- Botón de Administración (Crear Convocatoria para Admin) -->
+    <Button
+        android:id="@+id/btnCrearConvocatoriaAdmin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="+ Crear Nueva Convocatoria (Admin)"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerMovilidad"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</LinearLayout>

@@ -30,6 +30,16 @@
             android:textColor="#666666"
             android:layout_marginBottom="12dp"/>
 
+        <!-- Botón de Movilidad Académica (Para todos los roles) -->
+        <Button
+            android:id="@+id/btnMovilidadAcademica"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="✈️ Movilidad Académica e Intercambios (HU-19/20)"
+            android:layout_marginBottom="10dp"
+            android:backgroundTint="#00796B"
+            android:textColor="#FFFFFF"/>
+
         <!-- Botones Principales de Acceso a Cursos (Arriba del Calendario) -->
         <Button
             android:id="@+id/btnDocentePublicar"

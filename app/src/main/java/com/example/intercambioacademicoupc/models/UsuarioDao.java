@@ -51,4 +51,7 @@ public interface UsuarioDao {
     @Query("SELECT * FROM usuarios WHERE rol = 'estudiante' AND (nombre LIKE '%' || :busqueda || '%' OR apellido LIKE '%' || :busqueda || '%' OR codigoEstudiantil LIKE '%' || :busqueda || '%' OR documento LIKE '%' || :busqueda || '%')")
     List<Usuario> buscarEstudiantes(String busqueda);
 
+    @Query("SELECT * FROM usuarios WHERE rol = 'docente' AND (nombre LIKE '%' || :busqueda || '%' OR apellido LIKE '%' || :busqueda || '%' OR correo LIKE '%' || :busqueda || '%' OR documento LIKE '%' || :busqueda || '%')")
+    List<Usuario> buscarDocentes(String busqueda);
+
 }

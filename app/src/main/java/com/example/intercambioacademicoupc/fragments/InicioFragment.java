@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.intercambioacademicoupc.AdminUsuariosActivity;
 import com.example.intercambioacademicoupc.CrearCursoActivity;
 import com.example.intercambioacademicoupc.MaterialesCursoActivity;
+import com.example.intercambioacademicoupc.MovilidadActivity;
 import com.example.intercambioacademicoupc.R;
 import com.example.intercambioacademicoupc.models.ActividadCurso;
 import com.example.intercambioacademicoupc.models.AppDatabase;
@@ -50,7 +51,7 @@ public class InicioFragment extends Fragment {
     private CalendarView calendarView;
     private Spinner spinnerFiltroCurso;
     private CheckBox chkOcultarEntregadas;
-    private Button btnAccionRol, btnBuscarInscribirCurso, btnEntregarTarea, btnMisActividades, btnMisCalificaciones, btnDocentePublicar;
+    private Button btnAccionRol, btnBuscarInscribirCurso, btnEntregarTarea, btnMisActividades, btnMisCalificaciones, btnDocentePublicar, btnMovilidadAcademica;
     private RecyclerView recyclerInicioCursos;
     private AppDatabase db;
     private SessionManager sessionManager;
@@ -71,6 +72,7 @@ public class InicioFragment extends Fragment {
         spinnerFiltroCurso = view.findViewById(R.id.spinnerFiltroCurso);
         chkOcultarEntregadas = view.findViewById(R.id.chkOcultarEntregadas);
 
+        btnMovilidadAcademica = view.findViewById(R.id.btnMovilidadAcademica);
         btnAccionRol = view.findViewById(R.id.btnAccionRol);
         btnBuscarInscribirCurso = view.findViewById(R.id.btnBuscarInscribirCurso);
         btnEntregarTarea = view.findViewById(R.id.btnEntregarTarea);
@@ -83,6 +85,10 @@ public class InicioFragment extends Fragment {
 
         db = AppDatabase.getDatabase(requireContext());
         sessionManager = new SessionManager(requireContext());
+
+        if (btnMovilidadAcademica != null) {
+            btnMovilidadAcademica.setOnClickListener(v -> startActivity(new Intent(requireContext(), MovilidadActivity.class)));
+        }
 
         Calendar cal = Calendar.getInstance();
         cargarActividadesPorFecha(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
@@ -211,8 +217,13 @@ public class InicioFragment extends Fragment {
                 btnMisCalificaciones.setVisibility(View.GONE);
 
             } else if ("administrador".equals(rol)) {
-                tvRolInfo.setText("Rol: Administrador. Gestiona usuarios, accesos y configuración general del sistema.");
-                btnAccionRol.setText("Gestionar Usuarios");
+                tvRolInfo.setText("Rol: Administrador. Gestiona usuarios, cursos por docente e intercambios académicos.");
+
+                btnDocentePublicar.setText("🔍 Buscar Cursos por Docente");
+                btnDocentePublicar.setVisibility(View.VISIBLE);
+                btnDocentePublicar.setOnClickListener(v -> mostrarDialogoBuscarCursosPorDocenteAdmin());
+
+                btnAccionRol.setText("👥 Gestionar Usuarios");
                 btnAccionRol.setVisibility(View.VISIBLE);
                 btnAccionRol.setOnClickListener(v -> startActivity(new Intent(requireContext(), AdminUsuariosActivity.class)));
 
@@ -220,9 +231,74 @@ public class InicioFragment extends Fragment {
                 btnEntregarTarea.setVisibility(View.GONE);
                 btnMisActividades.setVisibility(View.GONE);
                 btnMisCalificaciones.setVisibility(View.GONE);
-                btnDocentePublicar.setVisibility(View.GONE);
             }
         };
+    }
+
+    private void mostrarDialogoBuscarCursosPorDocenteAdmin() {
+        EditText input = new EditText(requireContext());
+        input.setHint("Nombre, apellido o correo del docente");
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Admin: Buscar Cursos por Docente")
+                .setView(input)
+                .setPositiveButton("Buscar", (dialog, which) -> {
+                    String query = input.getText().toString().trim();
+                    if (query.isEmpty()) {
+                        Toast.makeText(requireContext(), "Ingresa un término de búsqueda", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    buscarYMostrarCursosDocenteAdmin(query);
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    private void buscarYMostrarCursosDocenteAdmin(String termino) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<Usuario> docentes = db.usuarioDao().buscarDocentes(termino);
+            requireActivity().runOnUiThread(() -> {
+                if (docentes.isEmpty()) {
+                    Toast.makeText(requireContext(), "No se encontraron docentes con ese criterio", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] nombres = new String[docentes.size()];
+                for (int i = 0; i < docentes.size(); i++) {
+                    nombres[i] = docentes.get(i).nombre + " " + docentes.get(i).apellido + " (" + docentes.get(i).correo + ")";
+                }
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Selecciona el Docente")
+                        .setItems(nombres, (d, which) -> {
+                            Usuario docElegido = docentes.get(which);
+                            mostrarCursosDeDocenteAdmin(docElegido);
+                        })
+                        .show();
+            });
+        });
+    }
+
+    private void mostrarCursosDeDocenteAdmin(Usuario docente) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<Curso> cursosDocente = db.cursoDao().obtenerCursosPorDocente(docente.id);
+            requireActivity().runOnUiThread(() -> {
+                if (cursosDocente.isEmpty()) {
+                    Toast.makeText(requireContext(), "El docente " + docente.nombre + " " + docente.apellido + " no tiene cursos asignados.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                String[] nombres = new String[cursosDocente.size()];
+                for (int i = 0; i < cursosDocente.size(); i++) {
+                    nombres[i] = cursosDocente.get(i).codigo + " - " + cursosDocente.get(i).nombre;
+                }
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Cursos de " + docente.nombre + " " + docente.apellido)
+                        .setItems(nombres, (d, which) -> {
+                            Intent intent = new Intent(requireContext(), MaterialesCursoActivity.class);
+                            intent.putExtra("CURSO_ID", cursosDocente.get(which).id);
+                            startActivity(intent);
+                        })
+                        .show();
+            });
+        });
     }
 
     private void elegirCursoMatriculadoParaEntrar() {
@@ -391,7 +467,6 @@ public class InicioFragment extends Fragment {
                         String estadoRev = ent.estadoRevision != null ? " [" + ent.estadoRevision + "]" : "";
                         items[i] = "📘 " + act.titulo + " (" + act.porcentaje + "%)\n   Curso: " + cursoNombre + "\n   Nota: " + ent.calificacion + " / 5.0" + feedbackInfo + estadoRev;
                     } else {
-                        // Criterio: Si una actividad aún no ha sido calificada se muestra como "pendiente"
                         items[i] = "📘 " + act.titulo + " (" + act.porcentaje + "%)\n   Curso: " + cursoNombre + "\n   Estado: pendiente";
                     }
                 }

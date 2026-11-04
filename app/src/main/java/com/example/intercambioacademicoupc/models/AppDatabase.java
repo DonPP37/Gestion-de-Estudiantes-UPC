@@ -23,8 +23,10 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
     Matricula.class,
     Entrega.class,
     ActividadCurso.class,
-    NotificacionItem.class
-}, version = 13) // Migración 12 -> 13 para HU-18 (notificaciones)
+    NotificacionItem.class,
+    Convocatoria.class,
+    Postulacion.class
+}, version = 14) // Migración 13 -> 14 para Movilidad Académica (HU-19 y HU-20)
 
 public abstract class AppDatabase extends RoomDatabase {
     public abstract UsuarioDao usuarioDao();
@@ -36,6 +38,8 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract EntregaDao entregaDao();
     public abstract ActividadCursoDao actividadCursoDao();
     public abstract NotificacionDao notificacionDao();
+    public abstract ConvocatoriaDao convocatoriaDao();
+    public abstract PostulacionDao postulacionDao();
 
     private static volatile AppDatabase INSTANCIA;
 
@@ -194,13 +198,21 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRACION_13_14 = new Migration(13, 14) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `convocatorias` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `institucionDestino` TEXT, `pais` TEXT, `idioma` TEXT, `periodo` TEXT, `requisitos` TEXT, `documentosExigidos` TEXT, `enlaceTerminos` TEXT, `fechaCierre` INTEGER NOT NULL, `estado` TEXT)");
+            db.execSQL("CREATE TABLE IF NOT EXISTS `postulaciones` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `convocatoriaId` INTEGER NOT NULL, `estudianteId` INTEGER NOT NULL, `semestreActual` TEXT, `cartaIntencionPdf` TEXT, `certificadoNotasPdf` TEXT, `pazYSalvoPdf` TEXT, `certificadoIdiomaPdf` TEXT, `cartaMotivacionPdf` TEXT, `fechaPostulacion` INTEGER NOT NULL, `estado` TEXT, `observacionAdmin` TEXT)");
+        }
+    };
+
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCIA == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCIA == null) {
                     INSTANCIA = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "intercambios_db_v2") // <-- Nombre cambiado
-                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13)
+                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14)
                             .fallbackToDestructiveMigration()
                             .addCallback(new RoomDatabase.Callback() {
                                 @Override
@@ -299,6 +311,31 @@ public abstract class AppDatabase extends RoomDatabase {
                     m2.tamanoArchivo = "4.1 MB";
                     m2.fechaPublicacion = System.currentTimeMillis();
                     db.contenidoCursoDao().insertarContenido(m2);
+
+                    // Convocatorias de Movilidad de prueba (HU-19 y HU-20)
+                    Convocatoria c1 = new Convocatoria();
+                    c1.institucionDestino = "Universidad Politécnica de Madrid";
+                    c1.pais = "España";
+                    c1.idioma = "Español";
+                    c1.periodo = "2027-1";
+                    c1.requisitos = "Promedio acumulado >= 3.8, haber cursado al menos 50% de la carrera.";
+                    c1.documentosExigidos = "Certificado de notas, paz y salvo, carta de motivación e intención.";
+                    c1.enlaceTerminos = "https://www.upm.es/intercambio";
+                    c1.fechaCierre = System.currentTimeMillis() + (30L * 24 * 60 * 60 * 1000);
+                    c1.estado = "activa";
+                    db.convocatoriaDao().insertarConvocatoria(c1);
+
+                    Convocatoria c2 = new Convocatoria();
+                    c2.institucionDestino = "Technical University of Munich";
+                    c2.pais = "Alemania";
+                    c2.idioma = "Inglés";
+                    c2.periodo = "2027-1";
+                    c2.requisitos = "Promedio >= 4.0, certificado TOEFL/IELTS B2+, paz y salvo.";
+                    c2.documentosExigidos = "Certificado de idioma, certificado de notas, carta de motivación.";
+                    c2.enlaceTerminos = "https://www.tum.de/exchange";
+                    c2.fechaCierre = System.currentTimeMillis() + (45L * 24 * 60 * 60 * 1000);
+                    c2.estado = "activa";
+                    db.convocatoriaDao().insertarConvocatoria(c2);
                 }
             }
         } catch (Exception e) {

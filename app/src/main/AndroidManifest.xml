@@ -30,6 +30,8 @@
         <activity android:name=".MaterialesCursoActivity" android:exported="false" />
         <!-- HU-14: Calificar entregas y seguimiento -->
         <activity android:name=".CalificarEntregasActivity" android:exported="false" />
+        <!-- HU-19/20: Movilidad Académica e Intercambios -->
+        <activity android:name=".MovilidadActivity" android:exported="false" />
 
     </application>
 
