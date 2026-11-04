@@ -35,6 +35,7 @@ import com.example.intercambioacademicoupc.models.Entrega;
 import com.example.intercambioacademicoupc.models.Matricula;
 import com.example.intercambioacademicoupc.models.Usuario;
 import com.example.intercambioacademicoupc.session.SessionManager;
+import com.example.intercambioacademicoupc.utils.NotificacionHelper;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -51,7 +52,7 @@ public class InicioFragment extends Fragment {
     private CalendarView calendarView;
     private Spinner spinnerFiltroCurso;
     private CheckBox chkOcultarEntregadas;
-    private Button btnAccionRol, btnBuscarInscribirCurso, btnEntregarTarea, btnMisActividades, btnMisCalificaciones, btnDocentePublicar, btnMovilidadAcademica;
+    private Button btnAccionRol, btnBuscarInscribirCurso, btnEntregarTarea, btnMisActividades, btnMisCalificaciones, btnDocentePublicar, btnMovilidadAcademica, btnMisNotificaciones;
     private RecyclerView recyclerInicioCursos;
     private AppDatabase db;
     private SessionManager sessionManager;
@@ -73,6 +74,7 @@ public class InicioFragment extends Fragment {
         chkOcultarEntregadas = view.findViewById(R.id.chkOcultarEntregadas);
 
         btnMovilidadAcademica = view.findViewById(R.id.btnMovilidadAcademica);
+        btnMisNotificaciones = view.findViewById(R.id.btnMisNotificaciones);
         btnAccionRol = view.findViewById(R.id.btnAccionRol);
         btnBuscarInscribirCurso = view.findViewById(R.id.btnBuscarInscribirCurso);
         btnEntregarTarea = view.findViewById(R.id.btnEntregarTarea);
@@ -88,6 +90,10 @@ public class InicioFragment extends Fragment {
 
         if (btnMovilidadAcademica != null) {
             btnMovilidadAcademica.setOnClickListener(v -> startActivity(new Intent(requireContext(), MovilidadActivity.class)));
+        }
+
+        if (btnMisNotificaciones != null) {
+            btnMisNotificaciones.setOnClickListener(v -> startActivity(new Intent(requireContext(), com.example.intercambioacademicoupc.NotificacionesActivity.class)));
         }
 
         Calendar cal = Calendar.getInstance();
@@ -718,6 +724,21 @@ public class InicioFragment extends Fragment {
                         entrega.fechaEntrega = System.currentTimeMillis();
                         entrega.estado = "Entregado";
                         db.entregaDao().insertarEntrega(entrega);
+
+                        // Notificar al profesor (docente) del curso
+                        Curso cursoObj = db.cursoDao().obtenerCursoPorId(cursoId);
+                        if (cursoObj != null && cursoObj.docenteId > 0) {
+                            String nombreEstudiante = usuarioActual != null ? (usuarioActual.nombre + " " + usuarioActual.apellido) : "Un estudiante";
+                            String nombreCurso = cursoObj.nombre != null ? cursoObj.nombre : "Curso";
+
+                            NotificacionHelper.registrarYNotificar(
+                                    requireContext(),
+                                    cursoObj.docenteId,
+                                    "Nueva entrega en " + nombreCurso,
+                                    nombreEstudiante + " ha realizado una entrega para '" + tituloActividad + "'.",
+                                    "entrega"
+                            );
+                        }
 
                         requireActivity().runOnUiThread(() ->
                                 Toast.makeText(requireContext(), "¡Trabajo entregado con éxito!", Toast.LENGTH_LONG).show()

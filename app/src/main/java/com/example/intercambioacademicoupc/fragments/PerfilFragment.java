@@ -23,9 +23,11 @@ import androidx.fragment.app.Fragment;
 import com.example.intercambioacademicoupc.AdminUsuariosActivity;
 import com.example.intercambioacademicoupc.CrearCursoActivity;
 import com.example.intercambioacademicoupc.LoginActivity;
+import com.example.intercambioacademicoupc.MaterialesCursoActivity;
 import com.example.intercambioacademicoupc.R;
 import com.example.intercambioacademicoupc.models.AppDatabase;
 import com.example.intercambioacademicoupc.models.CambioPerfil;
+import com.example.intercambioacademicoupc.models.Curso;
 import com.example.intercambioacademicoupc.models.Usuario;
 import com.example.intercambioacademicoupc.session.SessionManager;
 
@@ -49,7 +51,7 @@ public class PerfilFragment extends Fragment {
     private TextView tvNombre, tvDocumento, tvCodigo, tvPrograma, tvCorreo, tvUltimaActualizacion;
     private EditText etTelefono, etPasswordActual, etPasswordNueva, etPasswordConfirmar;
     private Button btnCambiarFoto, btnGuardarContacto, btnCambiarPassword, btnHistorial, btnCerrarSesion;
-    private Button btnAdminUsuarios, btnCrearCurso;
+    private Button btnAdminUsuarios, btnCrearCurso, btnMisCursos;
 
     private AppDatabase db;
     private SessionManager sesion;
@@ -90,6 +92,13 @@ public class PerfilFragment extends Fragment {
                 startActivity(new Intent(requireContext(), AdminUsuariosActivity.class)));
         btnCrearCurso.setOnClickListener(v ->
                 startActivity(new Intent(requireContext(), CrearCursoActivity.class)));
+        btnMisCursos.setOnClickListener(v -> {
+            if (usuarioActual != null && "docente".equals(usuarioActual.rol)) {
+                elegirCursoDocente();
+            } else {
+                elegirCursoMatriculado();
+            }
+        });
         btnCerrarSesion.setOnClickListener(v -> {
             sesion.cerrarSesion();
             irALogin();
@@ -121,6 +130,63 @@ public class PerfilFragment extends Fragment {
         btnCerrarSesion = view.findViewById(R.id.btnCerrarSesion);
         btnAdminUsuarios = view.findViewById(R.id.btnAdminUsuarios);
         btnCrearCurso = view.findViewById(R.id.btnCrearCurso);
+        btnMisCursos = view.findViewById(R.id.btnMisCursos);
+    }
+
+    private void elegirCursoMatriculado() {
+        if (usuarioActual == null) return;
+        final int id = usuarioActual.id;
+        executor.execute(() -> {
+            List<Curso> cursos = db.matriculaDao().obtenerCursosMatriculados(id);
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> {
+                if (cursos.isEmpty()) {
+                    Toast.makeText(requireContext(), "No estás matriculado en ningún curso", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] nombres = new String[cursos.size()];
+                for (int i = 0; i < cursos.size(); i++) {
+                    nombres[i] = cursos.get(i).codigo + " - " + cursos.get(i).nombre;
+                }
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Materiales de Mis Cursos")
+                        .setItems(nombres, (d, which) -> {
+                            Intent intent = new Intent(requireContext(), MaterialesCursoActivity.class);
+                            intent.putExtra("CURSO_ID", cursos.get(which).id);
+                            startActivity(intent);
+                        })
+                        .setPositiveButton("Cerrar", null)
+                        .show();
+            });
+        });
+    }
+
+    private void elegirCursoDocente() {
+        if (usuarioActual == null) return;
+        final int id = usuarioActual.id;
+        executor.execute(() -> {
+            List<Curso> cursos = db.cursoDao().obtenerCursosPorDocente(id);
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> {
+                if (cursos.isEmpty()) {
+                    Toast.makeText(requireContext(), "No has creado ningún curso todavía", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] nombres = new String[cursos.size()];
+                for (int i = 0; i < cursos.size(); i++) {
+                    nombres[i] = cursos.get(i).codigo + " - " + cursos.get(i).nombre;
+                }
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Gestionar Mis Cursos Creados")
+                        .setItems(nombres, (d, which) -> {
+                            Intent intent = new Intent(requireContext(), MaterialesCursoActivity.class);
+                            intent.putExtra("CURSO_ID", cursos.get(which).id);
+                            startActivity(intent);
+                        })
+                        .setPositiveButton("Cerrar", null)
+                        .show();
+            });
+        });
     }
 
     private void cargarPerfil() {
@@ -165,6 +231,12 @@ public class PerfilFragment extends Fragment {
 
         btnAdminUsuarios.setVisibility("administrador".equals(u.rol) ? View.VISIBLE : View.GONE);
         btnCrearCurso.setVisibility("docente".equals(u.rol) ? View.VISIBLE : View.GONE);
+        btnMisCursos.setVisibility(("estudiante".equals(u.rol) || "docente".equals(u.rol)) ? View.VISIBLE : View.GONE);
+        if ("docente".equals(u.rol)) {
+            btnMisCursos.setText("Gestionar mis cursos creados");
+        } else {
+            btnMisCursos.setText("Materiales de mis cursos");
+        }
     }
 
     private void mostrarFechaActualizacion(long fecha) {

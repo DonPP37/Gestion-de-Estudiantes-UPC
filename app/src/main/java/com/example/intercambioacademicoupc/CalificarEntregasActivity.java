@@ -289,6 +289,17 @@ public class CalificarEntregasActivity extends AppCompatActivity {
 
                     Executors.newSingleThreadExecutor().execute(() -> {
                         db.entregaDao().actualizarEntrega(entrega);
+
+                        if (estudiante != null && estudiante.notifNotaPublicada) {
+                            NotificacionHelper.registrarYNotificar(
+                                    CalificarEntregasActivity.this,
+                                    estudiante.id,
+                                    "Calificación publicada",
+                                    "Tu entrega para '" + entrega.tituloTarea + "' ha sido calificada con nota: " + nota,
+                                    "nota"
+                            );
+                        }
+
                         runOnUiThread(() -> {
                             Toast.makeText(this, "¡Calificación guardada y estudiante notificado exitosamente!", Toast.LENGTH_LONG).show();
                             cargarDatosYEntregas();

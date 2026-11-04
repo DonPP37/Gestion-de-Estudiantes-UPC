@@ -194,6 +194,14 @@
             android:visibility="gone" />
 
         <Button
+            android:id="@+id/btnMisCursos"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Materiales de mis cursos"
+            android:visibility="gone" />
+
+        <Button
             android:id="@+id/btnCerrarSesion"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

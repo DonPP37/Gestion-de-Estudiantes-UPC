@@ -40,6 +40,15 @@
             android:backgroundTint="#00796B"
             android:textColor="#FFFFFF"/>
 
+        <Button
+            android:id="@+id/btnMisNotificaciones"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🔔 Mis Notificaciones"
+            android:layout_marginBottom="10dp"
+            android:backgroundTint="#E65100"
+            android:textColor="#FFFFFF"/>
+
         <!-- Botones Principales de Acceso a Cursos (Arriba del Calendario) -->
         <Button
             android:id="@+id/btnDocentePublicar"

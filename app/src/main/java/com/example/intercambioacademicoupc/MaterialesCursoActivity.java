@@ -38,6 +38,7 @@ import com.example.intercambioacademicoupc.models.Matricula;
 import com.example.intercambioacademicoupc.models.RegistroAccesoMaterial;
 import com.example.intercambioacademicoupc.models.Usuario;
 import com.example.intercambioacademicoupc.session.SessionManager;
+import com.example.intercambioacademicoupc.utils.NotificacionHelper;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -624,6 +625,23 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                             db.entregaDao().insertarEntrega(e);
                         }
 
+                        // Notificar al profesor (docente) del curso
+                        Curso cursoObj = db.cursoDao().obtenerCursoPorId(cursoId);
+                        if (cursoObj != null && cursoObj.docenteId > 0) {
+                            Usuario estudiante = db.usuarioDao().buscarPorId(usuarioId);
+                            String nombreEstudiante = estudiante != null ? (estudiante.nombre + " " + estudiante.apellido) : "Un estudiante";
+                            String nombreCurso = cursoObj.nombre != null ? cursoObj.nombre : "Curso";
+                            String accionStr = entregaExistente != null ? "ha actualizado su entrega" : "ha realizado una entrega";
+
+                            NotificacionHelper.registrarYNotificar(
+                                    MaterialesCursoActivity.this,
+                                    cursoObj.docenteId,
+                                    "Entrega en " + nombreCurso,
+                                    nombreEstudiante + " " + accionStr + " para '" + act.titulo + "'.",
+                                    "entrega"
+                            );
+                        }
+
                         runOnUiThread(() -> {
                             mostrarComprobanteEntrega(act.titulo, codigoComprobante, fechaEnvio);
                             if (pestanaActual == 3) cargarCalificacionesCurso();
@@ -901,6 +919,21 @@ public class MaterialesCursoActivity extends AppCompatActivity {
 
                         db.actividadCursoDao().insertarActividad(actividad);
 
+                        List<Usuario> estudiantes = db.matriculaDao().obtenerEstudiantesPorCurso(cursoId);
+                        Curso cursoObj = db.cursoDao().obtenerCursoPorId(cursoId);
+                        String nombreCurso = cursoObj != null ? cursoObj.nombre : "Curso";
+                        for (Usuario est : estudiantes) {
+                            if (est.notifNuevaActividad) {
+                                NotificacionHelper.registrarYNotificar(
+                                        MaterialesCursoActivity.this,
+                                        est.id,
+                                        "Nueva actividad en " + nombreCurso,
+                                        "Se ha creado: " + titulo,
+                                        "actividad"
+                                );
+                            }
+                        }
+
                         runOnUiThread(() -> {
                             Toast.makeText(this, "Actividad creada con éxito", Toast.LENGTH_LONG).show();
                             archivoUriSeleccionado = null;
@@ -1162,6 +1195,21 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                         contenido.fechaPublicacion = System.currentTimeMillis();
 
                         db.contenidoCursoDao().insertarContenido(contenido);
+
+                        List<Usuario> estudiantesMat = db.matriculaDao().obtenerEstudiantesPorCurso(cursoId);
+                        Curso cursoObjMat = db.cursoDao().obtenerCursoPorId(cursoId);
+                        String nombreCursoMat = cursoObjMat != null ? cursoObjMat.nombre : "Curso";
+                        for (Usuario est : estudiantesMat) {
+                            if (est.notifNuevoMaterial) {
+                                NotificacionHelper.registrarYNotificar(
+                                        MaterialesCursoActivity.this,
+                                        est.id,
+                                        "Nuevo material en " + nombreCursoMat,
+                                        "Se ha publicado: " + titulo,
+                                        "material"
+                                );
+                            }
+                        }
 
                         runOnUiThread(() -> {
                             Toast.makeText(this, "Material publicado con éxito.", Toast.LENGTH_LONG).show();

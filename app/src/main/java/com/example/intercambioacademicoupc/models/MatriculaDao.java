@@ -19,4 +19,7 @@ public interface MatriculaDao {
 
     @Query("SELECT c.* FROM cursos c INNER JOIN matriculas m ON c.id = m.cursoId WHERE m.estudianteId = :estudianteId")
     List<Curso> obtenerCursosMatriculados(int estudianteId);
+
+    @Query("SELECT u.* FROM usuarios u INNER JOIN matriculas m ON u.id = m.estudianteId WHERE m.cursoId = :cursoId")
+    List<Usuario> obtenerEstudiantesPorCurso(int cursoId);
 }
