@@ -9,7 +9,7 @@ import java.util.List;
 @Dao
 public interface ActividadCursoDao {
     @Insert
-    void insertarActividad(ActividadCurso actividad);
+    long insertarActividad(ActividadCurso actividad);
 
     @Update
     void actualizarActividad(ActividadCurso actividad);

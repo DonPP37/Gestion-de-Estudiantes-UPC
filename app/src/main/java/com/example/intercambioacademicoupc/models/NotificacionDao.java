@@ -18,4 +18,7 @@ public interface NotificacionDao {
 
     @Query("UPDATE notificaciones SET leida = 1 WHERE usuarioId = :usuarioId")
     void marcarTodasComoLeidas(int usuarioId);
+
+    @Query("UPDATE notificaciones SET leida = 1 WHERE id = :id")
+    void marcarComoLeida(int id);
 }

@@ -26,7 +26,7 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
     NotificacionItem.class,
     Convocatoria.class,
     Postulacion.class
-}, version = 14) // Migración 13 -> 14 para Movilidad Académica (HU-19 y HU-20)
+}, version = 16) // Migración 15 -> 16 para preferencias de notificaciones del docente
 
 public abstract class AppDatabase extends RoomDatabase {
     public abstract UsuarioDao usuarioDao();
@@ -206,13 +206,43 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    static final Migration MIGRACION_14_15 = new Migration(14, 15) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            if (!existeColumna(db, "notificaciones", "cursoId")) {
+                db.execSQL("ALTER TABLE notificaciones ADD COLUMN cursoId INTEGER NOT NULL DEFAULT 0");
+            }
+            if (!existeColumna(db, "notificaciones", "actividadId")) {
+                db.execSQL("ALTER TABLE notificaciones ADD COLUMN actividadId INTEGER NOT NULL DEFAULT 0");
+            }
+        }
+    };
+
+    static final Migration MIGRACION_15_16 = new Migration(15, 16) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            if (!existeColumna(db, "usuarios", "notifEntregaTarea")) {
+                db.execSQL("ALTER TABLE usuarios ADD COLUMN notifEntregaTarea INTEGER NOT NULL DEFAULT 1");
+            }
+            if (!existeColumna(db, "usuarios", "notifReemplazoTarea")) {
+                db.execSQL("ALTER TABLE usuarios ADD COLUMN notifReemplazoTarea INTEGER NOT NULL DEFAULT 1");
+            }
+            if (!existeColumna(db, "usuarios", "notifEntregaTarde")) {
+                db.execSQL("ALTER TABLE usuarios ADD COLUMN notifEntregaTarde INTEGER NOT NULL DEFAULT 1");
+            }
+            if (!existeColumna(db, "usuarios", "notifSolicitudRevision")) {
+                db.execSQL("ALTER TABLE usuarios ADD COLUMN notifSolicitudRevision INTEGER NOT NULL DEFAULT 1");
+            }
+        }
+    };
+
     public static AppDatabase getDatabase(final Context context) {
         if (INSTANCIA == null) {
             synchronized (AppDatabase.class) {
                 if (INSTANCIA == null) {
                     INSTANCIA = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "intercambios_db_v2") // <-- Nombre cambiado
-                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14)
+                            .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12, MIGRACION_12_13, MIGRACION_13_14, MIGRACION_14_15, MIGRACION_15_16)
                             .fallbackToDestructiveMigration()
                             .addCallback(new RoomDatabase.Callback() {
                                 @Override

@@ -26,6 +26,9 @@ public interface UsuarioDao {
     @Query("UPDATE usuarios SET notifNuevoMaterial = :notifNuevoMaterial, notifNuevaActividad = :notifNuevaActividad, notifEntrega48h = :notifEntrega48h, notifNotaPublicada = :notifNotaPublicada WHERE id = :id")
     int actualizarPreferenciasNotificacion(int id, boolean notifNuevoMaterial, boolean notifNuevaActividad, boolean notifEntrega48h, boolean notifNotaPublicada);
 
+    @Query("UPDATE usuarios SET notifEntregaTarea = :e, notifReemplazoTarea = :r, notifEntregaTarde = :t, notifSolicitudRevision = :s WHERE id = :id")
+    int actualizarPreferenciasNotificacionDocente(int id, boolean e, boolean r, boolean t, boolean s);
+
     @Query("UPDATE usuarios SET passwordHash = :passwordHash, fechaActualizacion = :fecha WHERE id = :id")
     int actualizarPassword(int id, String passwordHash, long fecha);
 

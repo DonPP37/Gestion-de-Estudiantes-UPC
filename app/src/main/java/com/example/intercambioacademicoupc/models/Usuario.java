@@ -30,11 +30,17 @@ public class Usuario {
     // --- HU-05: Creación de roles ---
     public boolean activo = true;
 
-    // --- HU-18: Preferencias de Notificaciones ---
+    // --- HU-18: Preferencias de Notificaciones (Estudiante) ---
     public boolean notifNuevoMaterial = true;
     public boolean notifNuevaActividad = true;
     public boolean notifEntrega48h = true;
     public boolean notifNotaPublicada = true;
+
+    // --- Preferencias de Notificaciones (Docente) ---
+    public boolean notifEntregaTarea = true;
+    public boolean notifReemplazoTarea = true;
+    public boolean notifEntregaTarde = true;
+    public boolean notifSolicitudRevision = true;
 
     /** Fecha (epoch millis) del último cambio hecho al perfil. 0 = nunca se ha editado. */
     @ColumnInfo(defaultValue = "0")

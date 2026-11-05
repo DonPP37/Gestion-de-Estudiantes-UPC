@@ -178,7 +178,12 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                     btnTabConfig.setVisibility(View.GONE);
                     btnTabNotas.setVisibility(View.VISIBLE);
                 }
-                actualizarVistaPestaña();
+                int pestanaInicial = getIntent().getIntExtra("PESTANA", 0);
+                if (pestanaInicial > 0) {
+                    cambiarPestaña(pestanaInicial);
+                } else {
+                    actualizarVistaPestaña();
+                }
             });
         });
     }
@@ -625,21 +630,35 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                             db.entregaDao().insertarEntrega(e);
                         }
 
-                        // Notificar al profesor (docente) del curso
+                        // Notificar al profesor (docente) del curso según sus preferencias
                         Curso cursoObj = db.cursoDao().obtenerCursoPorId(cursoId);
                         if (cursoObj != null && cursoObj.docenteId > 0) {
+                            Usuario doc = db.usuarioDao().buscarPorId(cursoObj.docenteId);
                             Usuario estudiante = db.usuarioDao().buscarPorId(usuarioId);
                             String nombreEstudiante = estudiante != null ? (estudiante.nombre + " " + estudiante.apellido) : "Un estudiante";
                             String nombreCurso = cursoObj.nombre != null ? cursoObj.nombre : "Curso";
                             String accionStr = entregaExistente != null ? "ha actualizado su entrega" : "ha realizado una entrega";
 
-                            NotificacionHelper.registrarYNotificar(
-                                    MaterialesCursoActivity.this,
-                                    cursoObj.docenteId,
-                                    "Entrega en " + nombreCurso,
-                                    nombreEstudiante + " " + accionStr + " para '" + act.titulo + "'.",
-                                    "entrega"
-                            );
+                            if (doc != null) {
+                                boolean esTarde = System.currentTimeMillis() > act.fechaCierre;
+                                boolean esReemplazo = entregaExistente != null;
+                                boolean notificar = true;
+                                if (esTarde && !doc.notifEntregaTarde) notificar = false;
+                                else if (!esTarde && esReemplazo && !doc.notifReemplazoTarea) notificar = false;
+                                else if (!esTarde && !esReemplazo && !doc.notifEntregaTarea) notificar = false;
+
+                                if (notificar) {
+                                    NotificacionHelper.registrarYNotificar(
+                                            MaterialesCursoActivity.this,
+                                            cursoObj.docenteId,
+                                            "Entrega en " + nombreCurso,
+                                            nombreEstudiante + " " + accionStr + " para '" + act.titulo + "'.",
+                                            "entrega",
+                                            cursoId,
+                                            act.id
+                                    );
+                                }
+                            }
                         }
 
                         runOnUiThread(() -> {
@@ -917,7 +936,7 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                         actividad.fechaCierre = finalCierre;
                         actividad.visible = esVisible;
 
-                        db.actividadCursoDao().insertarActividad(actividad);
+                        long idAct = db.actividadCursoDao().insertarActividad(actividad);
 
                         List<Usuario> estudiantes = db.matriculaDao().obtenerEstudiantesPorCurso(cursoId);
                         Curso cursoObj = db.cursoDao().obtenerCursoPorId(cursoId);
@@ -929,7 +948,9 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                                         est.id,
                                         "Nueva actividad en " + nombreCurso,
                                         "Se ha creado: " + titulo,
-                                        "actividad"
+                                        "actividad",
+                                        cursoId,
+                                        (int) idAct
                                 );
                             }
                         }
@@ -1206,7 +1227,9 @@ public class MaterialesCursoActivity extends AppCompatActivity {
                                         est.id,
                                         "Nuevo material en " + nombreCursoMat,
                                         "Se ha publicado: " + titulo,
-                                        "material"
+                                        "material",
+                                        cursoId,
+                                        0
                                 );
                             }
                         }

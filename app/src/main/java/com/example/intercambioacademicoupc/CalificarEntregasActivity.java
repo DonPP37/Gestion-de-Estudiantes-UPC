@@ -296,7 +296,9 @@ public class CalificarEntregasActivity extends AppCompatActivity {
                                     estudiante.id,
                                     "Calificación publicada",
                                     "Tu entrega para '" + entrega.tituloTarea + "' ha sido calificada con nota: " + nota,
-                                    "nota"
+                                    "nota",
+                                    cursoId,
+                                    actividadId
                             );
                         }
 

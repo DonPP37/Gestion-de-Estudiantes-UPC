@@ -542,6 +542,23 @@ public class InicioFragment extends Fragment {
                         entrega.estadoRevision = "en revisión";
                         db.entregaDao().actualizarEntrega(entrega);
 
+                        Curso c = db.cursoDao().obtenerCursoPorId(entrega.cursoId);
+                        if (c != null && c.docenteId > 0) {
+                            Usuario doc = db.usuarioDao().buscarPorId(c.docenteId);
+                            if (doc != null && doc.notifSolicitudRevision) {
+                                String estNombre = usuarioActual != null ? (usuarioActual.nombre + " " + usuarioActual.apellido) : "Un estudiante";
+                                NotificacionHelper.registrarYNotificar(
+                                        requireContext(),
+                                        c.docenteId,
+                                        "Solicitud de revisión de nota",
+                                        estNombre + " ha solicitado revisión para '" + entrega.tituloTarea + "'.",
+                                        "entrega",
+                                        entrega.cursoId,
+                                        entrega.actividadId
+                                );
+                            }
+                        }
+
                         requireActivity().runOnUiThread(() ->
                                 Toast.makeText(requireContext(), "Solicitud enviada al docente con éxito (Estado: En revisión)", Toast.LENGTH_LONG).show()
                         );
@@ -725,19 +742,30 @@ public class InicioFragment extends Fragment {
                         entrega.estado = "Entregado";
                         db.entregaDao().insertarEntrega(entrega);
 
-                        // Notificar al profesor (docente) del curso
+                        // Notificar al profesor (docente) del curso según sus preferencias
                         Curso cursoObj = db.cursoDao().obtenerCursoPorId(cursoId);
                         if (cursoObj != null && cursoObj.docenteId > 0) {
+                            Usuario doc = db.usuarioDao().buscarPorId(cursoObj.docenteId);
+                            ActividadCurso actObj = db.actividadCursoDao().obtenerPorId(actividadId);
                             String nombreEstudiante = usuarioActual != null ? (usuarioActual.nombre + " " + usuarioActual.apellido) : "Un estudiante";
                             String nombreCurso = cursoObj.nombre != null ? cursoObj.nombre : "Curso";
 
-                            NotificacionHelper.registrarYNotificar(
-                                    requireContext(),
-                                    cursoObj.docenteId,
-                                    "Nueva entrega en " + nombreCurso,
-                                    nombreEstudiante + " ha realizado una entrega para '" + tituloActividad + "'.",
-                                    "entrega"
-                            );
+                            if (doc != null) {
+                                boolean esTarde = actObj != null && System.currentTimeMillis() > actObj.fechaCierre;
+                                boolean notificar = esTarde ? doc.notifEntregaTarde : doc.notifEntregaTarea;
+
+                                if (notificar) {
+                                    NotificacionHelper.registrarYNotificar(
+                                            requireContext(),
+                                            cursoObj.docenteId,
+                                            "Nueva entrega en " + nombreCurso,
+                                            nombreEstudiante + " ha realizado una entrega para '" + tituloActividad + "'.",
+                                            "entrega",
+                                            cursoId,
+                                            actividadId
+                                    );
+                                }
+                            }
                         }
 
                         requireActivity().runOnUiThread(() ->

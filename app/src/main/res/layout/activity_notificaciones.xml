@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -15,14 +16,96 @@
         android:textColor="#333333"
         android:layout_marginBottom="12dp" />
 
-    <Button
-        android:id="@+id/btnMarcarTodasLeidas"
+    <!-- Botones de Acción Superior -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Marcar todas como leídas"
-        android:backgroundTint="#1976D2"
-        android:textColor="#FFFFFF"
-        android:layout_marginBottom="12dp" />
+        android:orientation="horizontal"
+        android:layout_marginBottom="10dp">
+
+        <Button
+            android:id="@+id/btnMarcarTodasLeidas"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Marcar leídas"
+            android:textSize="12sp"
+            android:backgroundTint="#1976D2"
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/btnConfigurarNotif"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="⚙️ Configurar"
+            android:textSize="12sp"
+            android:backgroundTint="#455A64"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- Panel de Configuración de Notificaciones (Expandible / Plegable) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardAjustesNotificaciones"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="3dp"
+        app:cardUseCompatPadding="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔔 Activar / Desactivar Notificaciones"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:textColor="#1976D2"
+                android:layout_marginBottom="8dp" />
+
+            <Switch
+                android:id="@+id/switchNotifMaterial"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Nuevos materiales publicados"
+                android:textSize="13sp"
+                android:paddingVertical="4dp" />
+
+            <Switch
+                android:id="@+id/switchNotifActividad"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Nuevas actividades / tareas asignadas"
+                android:textSize="13sp"
+                android:paddingVertical="4dp" />
+
+            <Switch
+                android:id="@+id/switchNotifEntrega48h"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Recordatorio de entregas (&lt; 48h)"
+                android:textSize="13sp"
+                android:paddingVertical="4dp" />
+
+            <Switch
+                android:id="@+id/switchNotifNota"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Publicación de calificaciones"
+                android:textSize="13sp"
+                android:paddingVertical="4dp" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvNotificaciones"

@@ -24,6 +24,9 @@ public interface CursoDao {
     @Query("SELECT * FROM cursos WHERE codigo LIKE '%' || :termino || '%' OR nombre LIKE '%' || :termino || '%'")
     List<Curso> buscarCursos(String termino);
 
+    @Query("SELECT * FROM cursos")
+    List<Curso> obtenerTodosLosCursos();
+
     @Query("DELETE FROM cursos WHERE id = :cursoId")
     void eliminarCurso(int cursoId);
 }

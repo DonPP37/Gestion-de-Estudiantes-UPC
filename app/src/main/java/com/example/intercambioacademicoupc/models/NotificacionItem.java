@@ -11,7 +11,9 @@ public class NotificacionItem {
     public int usuarioId;
     public String titulo;
     public String mensaje;
-    public String tipo; // "material", "actividad", "vencer", "nota"
+    public String tipo; // "material", "actividad", "vencer", "nota", "entrega"
+    public int cursoId = 0;
+    public int actividadId = 0;
     public long fecha;
     public boolean leida = false;
 }

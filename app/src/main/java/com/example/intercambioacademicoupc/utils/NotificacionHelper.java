@@ -14,7 +14,7 @@ public class NotificacionHelper {
 
     private static final String CHANNEL_ID = "canal_notificaciones_upc";
 
-    public static void registrarYNotificar(Context context, int usuarioId, String titulo, String mensaje, String tipo) {
+    public static void registrarYNotificar(Context context, int usuarioId, String titulo, String mensaje, String tipo, int cursoId, int actividadId) {
         Executors.newSingleThreadExecutor().execute(() -> {
             AppDatabase db = AppDatabase.getDatabase(context);
 
@@ -23,6 +23,8 @@ public class NotificacionHelper {
             item.titulo = titulo;
             item.mensaje = mensaje;
             item.tipo = tipo;
+            item.cursoId = cursoId;
+            item.actividadId = actividadId;
             item.fecha = System.currentTimeMillis();
             item.leida = false;
 
@@ -30,6 +32,10 @@ public class NotificacionHelper {
 
             mostrarNotificacionSistema(context, titulo, mensaje);
         });
+    }
+
+    public static void registrarYNotificar(Context context, int usuarioId, String titulo, String mensaje, String tipo) {
+        registrarYNotificar(context, usuarioId, titulo, mensaje, tipo, 0, 0);
     }
 
     public static void mostrarNotificacion(Context context, String titulo, String mensaje, int notificationId) {

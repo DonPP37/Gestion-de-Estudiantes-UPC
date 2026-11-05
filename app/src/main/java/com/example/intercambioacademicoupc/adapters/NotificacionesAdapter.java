@@ -18,12 +18,27 @@ import java.util.List;
 
 public class NotificacionesAdapter extends RecyclerView.Adapter<NotificacionesAdapter.NotificacionViewHolder> {
 
+    public interface OnNotificacionClickListener {
+        void onNotificacionClick(NotificacionItem item);
+    }
+
     private Context context;
     private List<NotificacionItem> listaNotificaciones;
+    private OnNotificacionClickListener listener;
 
     public NotificacionesAdapter(Context context, List<NotificacionItem> listaNotificaciones) {
         this.context = context;
         this.listaNotificaciones = listaNotificaciones;
+    }
+
+    public NotificacionesAdapter(Context context, List<NotificacionItem> listaNotificaciones, OnNotificacionClickListener listener) {
+        this.context = context;
+        this.listaNotificaciones = listaNotificaciones;
+        this.listener = listener;
+    }
+
+    public void setOnNotificacionClickListener(OnNotificacionClickListener listener) {
+        this.listener = listener;
     }
 
     public void setListaNotificaciones(List<NotificacionItem> lista) {
@@ -54,6 +69,12 @@ public class NotificacionesAdapter extends RecyclerView.Adapter<NotificacionesAd
             holder.itemView.setBackgroundColor(0xFFFFFFFF); // White for read
             holder.tvTitulo.setTypeface(null, Typeface.NORMAL);
         }
+
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onNotificacionClick(item);
+            }
+        });
     }
 
     @Override
